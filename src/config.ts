@@ -2,8 +2,15 @@ import * as dotenv from 'dotenv';
 import fs from 'fs';
 import Ajv from 'ajv';
 
-type ConfigParams = {
+export type ConfigParams = {
   account: "production" | "demo";
+  slack: {
+    accessToken: string;
+    channel: string;
+  },
+  server: {
+    namedPipePath: string;
+  }
 }
 
 const ConfigParamsSchema = {
@@ -18,8 +25,9 @@ const ConfigParamsSchema = {
 };
 
 export class Config {
-  static load() {
-    dotenv.config();
+  static load(): ConfigParams {
+    const configParams: ConfigParams = require('../config/config.cjs');
+    return configParams;
   }
 
   static getEnv(key: string, defaultValue?: string): string {
@@ -35,17 +43,3 @@ export class Config {
     return value;
   }
 }
-
-(async () => {
-
-  const data = fs.readFileSync('config/config.json', 'utf8');
-  console.log(data);
-  let obj = JSON.parse(data);
-  const ajv = new Ajv();
-  if (!ajv.validate(ConfigParamsSchema, obj)) {
-    console.error(ajv.errors);
-  }
-
-  console.log(obj);
-
-})();
