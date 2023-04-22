@@ -1,6 +1,7 @@
 {
   "name": "mthl",
   "packageManager": "yarn@4.0.0-rc.36",
+  "license": "UNLICENSED",
   "devDependencies": {
     "@tsconfig/node16": "^1.0.3",
     "@types/eslint": "^8.37.0",
