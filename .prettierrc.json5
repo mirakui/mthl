@@ -1,0 +1,10 @@
+{
+  overrides: [
+    {
+      files: ["*.js", "*.ts", "*.tsx"],
+      options: {
+        singleQuote: true,
+      },
+    },
+  ],
+}
