@@ -12,5 +12,6 @@
 #!.yarn/cache
 node_modules/
 dist/
+tmp/
 .pnp.*
 *.exe
