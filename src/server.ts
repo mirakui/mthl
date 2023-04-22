@@ -1,27 +1,44 @@
 import * as net from "node:net";
-const pipeName = "\\\\.\\pipe\\myNamedPipe";
+import { Mthl } from "./mthl";
 
-// Named Pipe サーバーの作成
-const server = net.createServer(undefined, (socket: net.Socket) => {
-  console.log("クライアントが接続しました");
+type ConstructorProps = {
+  pipeName: string;
+}
 
-  // データの受信
-  socket.on("data", (data: any) => {
-    console.log(`サーバーがデータを受信: ${data}`);
-  });
+export class Server {
+  private _server?: net.Server;
+  private readonly _pipePath: string;
 
-  // クライアントからの切断
-  socket.on("end", () => {
-    console.log("クライアントが切断しました");
-  });
-});
+  constructor(props: ConstructorProps) {
+    if (!props.pipeName.match(/\A[a-zA-Z0-9_]+\z/)) {
+      throw new Error(`Invalid pipe name: ${props.pipeName}`);
+    }
+    this._pipePath = `\\\\.\\pipe\\${props.pipeName}`;
+  }
 
-// エラー処理
-server.on("error", (err: any) => {
-  console.error("サーバーエラー:", err);
-});
+  get logger() {
+    return Mthl.logger;
+  }
 
-// Named Pipe にバインド
-server.listen(pipeName, () => {
-  console.log(`サーバーが ${pipeName} でリッスンしています`);
-});
+  start() {
+    this._server = net.createServer(undefined, (socket: net.Socket) => {
+      this.logger.log("Client connected");
+
+      socket.on("data", (data: any) => {
+        this.logger.log(`Received from client: ${data}`);
+      });
+
+      socket.on("end", () => {
+        this.logger.log("Client disconnected");
+      });
+    });
+
+    this._server.on("error", (err: any) => {
+      this.logger.log(`Server error: ${err}`);
+    });
+
+    this._server.listen(this._pipePath, () => {
+      this.logger.log(`Listening: ${this._pipePath}`);
+    });
+  }
+}

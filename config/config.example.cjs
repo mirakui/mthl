@@ -5,6 +5,6 @@ module.exports = {
     channel: "highlow",
   },
   server: {
-    namedPipePath: "\\\\.\\pipe\\mthl",
+    pipeName: "mthl",
   }
 }

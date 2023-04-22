@@ -9,7 +9,7 @@ export type ConfigParams = {
     channel: string;
   },
   server: {
-    namedPipePath: string;
+    pipeName: string;
   }
 }
 

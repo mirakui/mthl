@@ -1,8 +1,10 @@
 import { WebClient } from '@slack/web-api';
 
 type ConstructorProps = {
-  webClient: WebClient;
-  channel: string;
+  slack: {
+    accessToken: string;
+    channel: string;
+  }
 }
 
 export class MultiLogger {
@@ -10,8 +12,8 @@ export class MultiLogger {
   private readonly channel: string;
 
   constructor(props: ConstructorProps) {
-    this.webClient = props.webClient;
-    this.channel = props.channel;
+    this.webClient = new WebClient(props.slack.accessToken);
+    this.channel = props.slack.channel;
   }
 
   async log(message: string): Promise<void> {
