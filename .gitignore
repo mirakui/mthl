@@ -10,5 +10,6 @@
 # Documentation here: https://yarnpkg.com/features/zero-installs
 
 #!.yarn/cache
+node_modules/
 .pnp.*
 *.exe
