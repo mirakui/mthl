@@ -4,35 +4,45 @@
 //|                                  https://github.com/mirakui/mhtl |
 //+------------------------------------------------------------------+
 
+#include <stderror.mqh>
+#include <stdlib.mqh>
+
 #property copyright "mirakui"
 #property link      "https://github.com/mirakui/mhtl"
 #property version   "1.00"
 #property strict
 
 extern string IndicatorName = "TESTarrow";
+extern string PipeName = "\\\\.\\pipe\\myNamedPipe";
 
 datetime LastBarTime;
 int LastPeriod;
+int Pipe = INVALID_HANDLE;
 
 int OnInit() {
   LastBarTime = iTime(NULL, 0, 0);
   LastPeriod = Period();
+
+  OpenPipe();
+  SendMessage("HELLO!!!");
+
   return(INIT_SUCCEEDED);
 }
 
 void OnDeinit(const int reason) {
+  ClosePipe();
 }
 
 void OnTick() {
   double signalValue;
 
-  if (!isNewTick()) { return; }
+  if (!IsNewTick()) { return; }
 
-  signalValue = detectSignal(IndicatorName, 0);
+  signalValue = DetectSignal(IndicatorName, 0);
   if (signalValue != 0) {
     Alert("Signal detected at bar 0 with value ", signalValue);
   }
-  signalValue = detectSignal(IndicatorName, 1);
+  signalValue = DetectSignal(IndicatorName, 1);
   if (signalValue != 0) {
     Alert("Signal detected at bar 1 with value ", signalValue);
   }
@@ -42,7 +52,7 @@ void OnTick() {
   Print("currentBarTime = " + TimeToString(currentBarTime, TIME_DATE | TIME_SECONDS) + " | " + EnumToString((ENUM_TIMEFRAMES)currentPeriod));
 }
 
-bool isNewTick() {
+bool IsNewTick() {
   datetime barTime = iTime(NULL, 0, 0);
   int period = Period();
   if (barTime != LastBarTime && period == LastPeriod) {
@@ -55,7 +65,7 @@ bool isNewTick() {
   }
 }
 
-double detectSignal(string indicatorName, int bufferIndex) {
+double DetectSignal(string indicatorName, int bufferIndex) {
   double v0 = iCustom(NULL, 0, indicatorName, bufferIndex, 2);
   double v1 = iCustom(NULL, 0, indicatorName, bufferIndex, 1);
   if (v0 == 0 && v1 != 0) {
@@ -64,4 +74,39 @@ double detectSignal(string indicatorName, int bufferIndex) {
   else {
     return 0;
   }
+}
+
+int OpenPipe() {
+  Pipe = FileOpen(PipeName, FILE_WRITE | FILE_BIN | FILE_ANSI);
+
+  if (Pipe >= 0) {
+    Print("[SUCCESS] OpenPipe: " + PipeName);
+  }
+  else {
+    int lastError = GetLastError();
+    Print("[ERROR] OpenPipe: " + PipeName + " / Error: " + ErrorDescription(lastError));
+  }
+
+  return Pipe;
+}
+
+void ClosePipe() {
+  if (Pipe >= 0) {
+    Print("ClosePipe: " + PipeName);
+    FileClose(Pipe);
+  }
+}
+
+int SendMessage(string message) {
+  FileWriteString(Pipe, message + "\r\n");
+
+  int lastError = GetLastError();
+  if(lastError == ERR_NO_ERROR) {
+    Print("[SUCCESS] SendMessage: " + message);
+  }
+  else {
+    Print("[ERROR] SendMessage: " + message + " / Error: " + ErrorDescription(lastError));
+  }
+
+  return lastError;
 }
