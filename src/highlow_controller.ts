@@ -12,12 +12,23 @@ export class HighLowController {
 
   async getBrowser() {
     if (this._browser === undefined) {
-      this._browser = await puppeteer.launch({
+      this._browser = await this.launchBrowser();
+    }
+    return this._browser;
+  }
+
+  async launchBrowser(): Promise<puppeteer.Browser> {
+    const wsEndpoint = process.env["WS_ENDPOINT"];
+    if (wsEndpoint) {
+      console.log("Connecting to existing browser: " + wsEndpoint);
+      return await puppeteer.connect({ browserWSEndpoint: wsEndpoint });
+    } else {
+      console.log("Launching new browser");
+      return await puppeteer.launch({
         headless: false,
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
       });
     }
-    return this._browser;
   }
 
   async getPage() {
@@ -42,7 +53,8 @@ export class HighLowController {
     const page = await this.getPage();
     await page.goto(url);
     if (page.url().match(/\/login/)) {
-      await this.login();
+      // await this.login();
+      console.log("ブラウザからログインしてください");
     }
   }
 

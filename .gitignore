@@ -14,4 +14,5 @@ node_modules/
 dist/
 tmp/
 .pnp.*
+.env
 *.exe
