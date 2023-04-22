@@ -45,13 +45,40 @@ export class HighLowController {
 
   async goTradingHistory() {
     const url = `${HIGHLOW_URL_BASE}/my-account/trading/trade-action-history`;
+    await this.goto(url);
+  }
 
-    this.goto(url);
+  async goDashboard() {
+    const page = await this.getPage();
+    const url = `${HIGHLOW_APP_URL_BASE}/`;
+    await this.goto(url);
+  }
+
+  async fetchMarketClosed(): Promise<boolean> {
+    const page = await this.getPage();
+    await this.goto(`${HIGHLOW_APP_URL_BASE}/`);
+    const countdownDiv = await page.$("div[class^='MarketClosed_countdown']");
+    return countdownDiv !== null;
+  }
+
+  async fetchBalance(): Promise<number> {
+    const page = await this.getPage();
+    await this.goto(`${HIGHLOW_URL_BASE}/my-account/trading/trade-action-history`);
+    const balanceSpan = await page.$("span.emphasized.eng.accountBalancePolled");
+    const balance = await balanceSpan?.evaluate(node => node.textContent);
+    return this.parseBalance(balance || '0');
+  }
+
+  private parseBalance(balance: string): number {
+    return parseFloat(balance.replace(/[¥,]/g, ''));
   }
 
   async goto(url: string) {
     const page = await this.getPage();
-    await page.goto(url);
+    if (page.url() !== url) {
+      console.log("Fetching: " + url);
+      await page.goto(url);
+    }
     if (page.url().match(/\/login/)) {
       // await this.login();
       console.log("ブラウザからログインしてください");
@@ -73,6 +100,8 @@ export class HighLowController {
 
 (async () => {
   const controller = new HighLowController();
-  await controller.goTradingHistory();
+  const marketClosed = await controller.fetchMarketClosed();
+  console.log("marketClosed: " + marketClosed);
+  console.log("balance: " + await controller.fetchBalance());
   setInterval(() => { }, 10000);
 })();

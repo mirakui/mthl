@@ -1,4 +1,21 @@
 import * as dotenv from 'dotenv';
+import fs from 'fs';
+import Ajv from 'ajv';
+
+type ConfigParams = {
+  account: "production" | "demo";
+}
+
+const ConfigParamsSchema = {
+  type: "object",
+  properties: {
+    account: {
+      type: "string",
+      enum: ["production", "demo"],
+    }
+  },
+  additionalProperties: false,
+};
 
 export class Config {
   static load() {
@@ -18,3 +35,17 @@ export class Config {
     return value;
   }
 }
+
+(async () => {
+
+  const data = fs.readFileSync('config/config.json', 'utf8');
+  console.log(data);
+  let obj = JSON.parse(data);
+  const ajv = new Ajv();
+  if (!ajv.validate(ConfigParamsSchema, obj)) {
+    console.error(ajv.errors);
+  }
+
+  console.log(obj);
+
+})();
