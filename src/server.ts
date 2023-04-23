@@ -1,5 +1,6 @@
 import * as net from "node:net";
 import { Mthl } from "./mthl";
+import { QueryParser } from "./query_parser";
 
 type ConstructorProps = {
   pipeName: string;
@@ -8,12 +9,14 @@ type ConstructorProps = {
 export class Server {
   private _server?: net.Server;
   private readonly _pipePath: string;
+  private readonly _queryParser: QueryParser;
 
   constructor(props: ConstructorProps) {
     if (!props.pipeName.match(/\A[a-zA-Z0-9_]+\z/)) {
       throw new Error(`Invalid pipe name: ${props.pipeName}`);
     }
     this._pipePath = `\\\\.\\pipe\\${props.pipeName}`;
+    this._queryParser = new QueryParser();
   }
 
   get logger() {
@@ -26,6 +29,7 @@ export class Server {
 
       socket.on("data", (data: any) => {
         this.logger.log(`Received from client: ${data}`);
+        const cmd = this._queryParser.parse(data);
       });
 
       socket.on("end", () => {

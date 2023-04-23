@@ -1,5 +1,9 @@
-export interface CommandPropsBase {
+import { HighLowController } from "src/highlow_controller";
+import { MultiLogger } from "src/multi_logger";
 
+export interface CommandPropsBase {
+  controller: HighLowController
+  logger: MultiLogger
 }
 
 export interface CommandResultBase {
@@ -16,6 +20,14 @@ export class CommandBase<PropsType extends CommandPropsBase, ResultType extends 
 
   get props() {
     return this._props;
+  }
+
+  get logger() {
+    return this.props.logger;
+  }
+
+  get controller() {
+    return this.props.controller;
   }
 
   async run(): Promise<ResultType> {
