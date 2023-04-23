@@ -2,6 +2,7 @@ import { CommandBase, CommandPropsBase, CommandResultBase } from "./commands/bas
 import Ajv from 'ajv';
 import { EntryCommand, EntryCommandProps } from "./commands/entry_command";
 import { Mthl } from "./mthl";
+import { EchoCommand, EchoCommandProps } from "./commands/echo_command";
 
 const EntryCommandSchema = {
   type: "object",
@@ -18,9 +19,24 @@ const EntryCommandSchema = {
       type: "string",
     },
   },
-  requred: ["command", "direction", "pairName"],
+  required: ["command", "direction", "pairName"],
   additionalProperties: false,
 };
+
+const EchoCommandSchema = {
+  type: "object",
+  properties: {
+    command: {
+      type: "string",
+      enum: ["Echo"],
+    },
+    message: {
+      type: "string",
+    },
+  },
+  required: ["command", "message"],
+  additionalProperties: false,
+}
 
 export class QueryParserError extends Error { }
 
@@ -39,12 +55,31 @@ export class QueryParser {
     }
 
     switch (json.command) {
+      case "Echo":
+        return this.buildEchoCommand(json);
+        break;
       case "Entry":
         return this.buildEntryCommand(json);
         break;
       default:
         throw new QueryParserError(`Command not supported: "${json.command}" in ${query}`);
     }
+  }
+
+  buildEchoCommand(json: any): EchoCommand {
+    const ajv = new Ajv();
+    const valid = ajv.validate(EchoCommandSchema, json);
+    if (!valid) {
+      throw new QueryParserError(`Invalid EchoCommand: ${ajv.errorsText()}`);
+    }
+
+    const props: EchoCommandProps = {
+      controller: Mthl.controller,
+      logger: Mthl.logger,
+      message: json.message,
+    };
+
+    return new EchoCommand(props);
   }
 
   buildEntryCommand(json: any): EntryCommand {

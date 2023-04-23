@@ -1,13 +1,13 @@
 import * as net from "node:net";
 
-const pipeName = '\\\\.\\pipe\\myNamedPipe';
+const pipeName = '\\\\.\\pipe\\mthl';
 
 // Named Pipe クライアントの作成
 const client = net.createConnection(pipeName, () => {
   console.log('クライアントがサーバーに接続しました');
 
   // データの送信
-  client.write('こんにちは、サーバー！');
+  client.write(JSON.stringify({ command: "Echo", message: "Hello, World!" }));
 });
 
 // データの受信

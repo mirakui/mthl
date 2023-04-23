@@ -12,7 +12,7 @@ export class Server {
   private readonly _queryParser: QueryParser;
 
   constructor(props: ConstructorProps) {
-    if (!props.pipeName.match(/\A[a-zA-Z0-9_]+\z/)) {
+    if (!props.pipeName.match(/^[a-zA-Z0-9_]+$/)) {
       throw new Error(`Invalid pipe name: ${props.pipeName}`);
     }
     this._pipePath = `\\\\.\\pipe\\${props.pipeName}`;
@@ -30,6 +30,7 @@ export class Server {
       socket.on("data", (data: any) => {
         this.logger.log(`Received from client: ${data}`);
         const cmd = this._queryParser.parse(data);
+        Mthl.processor.addCommand(cmd);
       });
 
       socket.on("end", () => {
