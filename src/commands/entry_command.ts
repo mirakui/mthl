@@ -18,8 +18,18 @@ export class EntryCommand extends CommandBase<EntryCommandProps, EntryCommandRes
   }
 
   async run(): Promise<EntryCommandResult> {
-    return {
-      success: true,
-    };
+    try {
+      this.controller.goDashboard();
+      this.controller.selectPair(this.props.pairName);
+      return {
+        success: true,
+      };
+    }
+    catch (err) {
+      console.log("Error: ", err);
+      return {
+        success: false,
+      };
+    }
   }
 }

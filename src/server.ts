@@ -28,9 +28,14 @@ export class Server {
       this.logger.log("Client connected");
 
       socket.on("data", (data: any) => {
-        this.logger.log(`Received from client: ${data}`);
-        const cmd = this._queryParser.parse(data);
-        Mthl.processor.addCommand(cmd);
+        try {
+          this.logger.log(`Received from client: ${data}`);
+          const cmd = this._queryParser.parse(data);
+          Mthl.processor.addCommand(cmd);
+        }
+        catch (err) {
+          this.logger.log(`Error on receiving command: \`${data}\`, ${err}`);
+        }
       });
 
       socket.on("end", () => {

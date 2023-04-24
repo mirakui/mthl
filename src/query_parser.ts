@@ -20,7 +20,7 @@ const EntryCommandSchema = {
     },
   },
   required: ["command", "direction", "pairName"],
-  additionalProperties: false,
+  additionalProperties: true,
 };
 
 const EchoCommandSchema = {

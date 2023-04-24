@@ -1,7 +1,10 @@
 import * as puppeteer from 'puppeteer';
+import { Mthl } from './mthl';
 
 const HIGHLOW_URL_BASE = 'https://highlow.com';
 const HIGHLOW_APP_URL_BASE = 'https://app.highlow.com';
+
+export class HighLowControllerError extends Error { }
 
 export class HighLowController {
   _browser?: puppeteer.Browser;
@@ -31,10 +34,16 @@ export class HighLowController {
     }
   }
 
-  async getPage() {
+  async getPage(): Promise<puppeteer.Page> {
     if (this._page === undefined) {
       const browser = await this.getBrowser();
-      this._page = await browser.newPage();
+      if (browser.pages.length > 0) {
+        this._page = browser.pages[browser.pages.length - 1] as puppeteer.Page;
+      }
+      else {
+        console.log("newPage");
+        this._page = await browser.newPage();
+      }
     }
     return this._page;
   }
@@ -48,10 +57,45 @@ export class HighLowController {
     await this.goto(url);
   }
 
+  get dashboardUrl() {
+    if (Mthl.config.account === "demo") {
+      return `${HIGHLOW_APP_URL_BASE}/quick-demo`;
+    } else {
+      return `${HIGHLOW_APP_URL_BASE}/`;
+    }
+  }
+
   async goDashboard() {
     const page = await this.getPage();
-    const url = `${HIGHLOW_APP_URL_BASE}/`;
-    await this.goto(url);
+    await this.goto(this.dashboardUrl);
+
+    await page.waitForNavigation({ waitUntil: "networkidle2" });
+    await page.waitForSelector("div#ChangingStrike0");
+    const highlowBtn = await page.$("div#ChangingStrike0");
+    if (highlowBtn === null) {
+      throw new HighLowControllerError("Cannot find highlow button");
+    }
+    highlowBtn.click();
+  }
+
+  async selectPair(pairName: string) {
+    const page = await this.getPage();
+    if (page.url() !== this.dashboardUrl) {
+      await this.goDashboard();
+    }
+
+    // page.$x(`//span[contains(text(),"${pairName}")]`)
+    // page.$x('//div[contains(@class,"OptionItem_container")]//span[contains(@class,"OptionItem_ticker") and contains(text(), "USD/JPY")]')
+
+    const containers = await page.$$('div[class*="OptionItem_container"]')
+    for (let container of containers) {
+      const ticker = await container.$eval('span[class*="OptionItem_ticker"]', elm => elm.textContent);
+      const duration = await container.$eval('span[class*="OptionItem_duration"]', elm => elm.textContent);
+      console.log("ticker: " + ticker, ", duration: " + duration);
+      if (ticker == pairName && duration == "15分") {
+        console.log("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+      }
+    }
   }
 
   async fetchMarketClosed(): Promise<boolean> {
@@ -97,11 +141,3 @@ export class HighLowController {
     await btn?.click();
   }
 }
-
-(async () => {
-  const controller = new HighLowController();
-  const marketClosed = await controller.fetchMarketClosed();
-  console.log("marketClosed: " + marketClosed);
-  console.log("balance: " + await controller.fetchBalance());
-  setInterval(() => { }, 10000);
-})();
