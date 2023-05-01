@@ -66,8 +66,9 @@ export class Mthl {
     Mthl._singleton = new Mthl({ config, logger, server, controller, processor });
   }
 
-  static start() {
+  static async start() {
     Mthl.logger.log("Start!");
+    await Mthl.controller.goDashboard();
     Mthl.server.start();
   }
 }

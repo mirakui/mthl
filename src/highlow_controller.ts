@@ -28,11 +28,15 @@ export class HighLowController {
     const wsEndpoint = process.env["WS_ENDPOINT"];
     if (wsEndpoint) {
       console.log("Connecting to existing browser: " + wsEndpoint);
-      return await puppeteer.connect({ browserWSEndpoint: wsEndpoint });
+      return await puppeteer.connect({
+        browserWSEndpoint: wsEndpoint,
+        defaultViewport: null
+      });
     } else {
       console.log("Launching new browser");
       return await puppeteer.launch({
         headless: false,
+        defaultViewport: null,
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
       });
     }
