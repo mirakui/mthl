@@ -1,7 +1,7 @@
 import { CommandBase, CommandPropsBase, CommandResultBase } from "./base";
 
 export interface EntryCommandProps extends CommandPropsBase {
-  direction: "up" | "down";
+  order: "high" | "low";
   timePeriod: "5m" | "15m";
   pairName: "USDJPY" | "EURJPY" | "EURUSD";
   expectedPrice?: number;
@@ -18,15 +18,29 @@ export class EntryCommand extends CommandBase<EntryCommandProps, EntryCommandRes
   }
 
   async run(): Promise<EntryCommandResult> {
+    const logger = this.logger.createLoggerWithTag("EntryCommand");
     try {
-      this.controller.goDashboard();
-      this.controller.selectPair(this.props.pairName);
+      logger.log("Start");
+      await this.controller.goDashboard();
+      await this.controller.enableOneClickTrading();
+      await this.controller.selectPair(this.props.pairName);
+      switch (this.props.order) {
+        case "high":
+          await this.controller.entry("high");
+          break;
+        case "low":
+          await this.controller.entry("low");
+          break;
+        default:
+          throw new Error(`Invalid order: ${this.props.order}`);
+      }
+      logger.log("End");
       return {
         success: true,
       };
     }
     catch (err) {
-      console.log("Error: ", err);
+      logger.log(`[Error] ${err}`);
       return {
         success: false,
       };

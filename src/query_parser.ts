@@ -11,15 +11,15 @@ const EntryCommandSchema = {
       type: "string",
       enum: ["Entry"],
     },
-    direction: {
+    order: {
       type: "string",
-      enum: ["up", "down"],
+      enum: ["high", "low"],
     },
     pairName: {
       type: "string",
     },
   },
-  required: ["command", "direction", "pairName"],
+  required: ["command", "order", "pairName"],
   additionalProperties: true,
 };
 
@@ -92,7 +92,7 @@ export class QueryParser {
     const props: EntryCommandProps = {
       controller: Mthl.controller,
       logger: Mthl.logger,
-      direction: json.direction as "up" | "down",
+      order: json.order as "high" | "low",
       pairName: json.pairName as "USDJPY" | "EURJPY" | "EURUSD",
       timePeriod: json.timePeriod as "5m" | "15m",
       // timeRange: json.timeRange,
