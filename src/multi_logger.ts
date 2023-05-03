@@ -1,4 +1,5 @@
 import { WebClient } from '@slack/web-api';
+import { formatISO } from 'date-fns'
 import crypto from 'node:crypto';
 
 type ConstructorProps = {
@@ -34,7 +35,8 @@ export class MultiLogger {
   }
 
   private async _log(message: string): Promise<void> {
-    console.log(message);
+    const time = formatISO(new Date());
+    console.log(`${time} ${message}`);
     // await this.webClient.chat.postMessage({
     //   channel: this.channel,
     //   text: message,

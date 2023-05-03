@@ -27,13 +27,13 @@ export class HighLowController {
   async launchBrowser(): Promise<puppeteer.Browser> {
     const wsEndpoint = process.env["WS_ENDPOINT"];
     if (wsEndpoint) {
-      console.log("Connecting to existing browser: " + wsEndpoint);
+      this.logger.log("Connecting to existing browser: " + wsEndpoint);
       return await puppeteer.connect({
         browserWSEndpoint: wsEndpoint,
         defaultViewport: null
       });
     } else {
-      console.log("Launching new browser");
+      this.logger.log("Launching new browser");
       return await puppeteer.launch({
         headless: false,
         defaultViewport: null,
@@ -49,7 +49,7 @@ export class HighLowController {
         this._page = browser.pages[browser.pages.length - 1] as puppeteer.Page;
       }
       else {
-        console.log("newPage");
+        this.logger.log("newPage");
         this._page = await browser.newPage();
       }
     }
