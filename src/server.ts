@@ -41,12 +41,13 @@ export class Server {
           this.logger.log(`Received from client: ${data}`);
           const command = this.queryParser.parse(data);
           const callback = async (result: CommandResultBase) => {
-            Mthl.server.logger.postMessage(`Finished command=\`${data}\`, result=\`${JSON.stringify(result)}\``);
+            const mark = result.success ? ":white_check_mark:" : ":x:";
+            Mthl.server.logger.postMessage(`${mark}*Finished command*\ncommand\n\`\`\`\n${data}\n\`\`\`\nresult\n\`\`\`\n${JSON.stringify(result)}\n\`\`\``);
           }
           Mthl.processor.addCommand({ command, callback });
         }
         catch (err) {
-          this.logger.postMessage(`Error on receiving command=\`${data}\`, error=\`${err}\``);
+          this.logger.postMessage(`:x: *Server Error on receiving command*\ncommand\n\`\`\`\n${data}\n\`\`\`\nerror\n\`\`\`\n${err}\n\`\`\``);
         }
       });
 
