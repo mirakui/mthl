@@ -3,6 +3,7 @@ import { Mthl } from "./mthl";
 import { QueryParser } from "./query_parser";
 import { MultiLogger } from "./multi_logger";
 import { CommandResultBase } from "./commands/base";
+import { CommandProcessorCallback } from "./command_processor";
 
 type ConstructorProps = {
   pipeName: string;
@@ -41,12 +42,22 @@ export class Server {
           this.logger.log(`Received from client: ${data}`);
           const command = this.queryParser.parse(data);
           const callback = async (result: CommandResultBase) => {
-            const mark = result.success ? ":white_check_mark:" : ":x:";
-            Mthl.server.logger.postMessage(`${mark}*Finished command*\ncommand\n\`\`\`\n${data}\n\`\`\`\nresult\n\`\`\`\n${JSON.stringify(result)}\n\`\`\``);
+            let mark: string;
+            if (result.success) {
+              mark = ":white_check_mark:";
+              Mthl.stats.increment(`Command/${command.name}/Success`);
+            }
+            else {
+              mark = ":x:";
+              Mthl.stats.increment(`Command/${command.name}/Failure`);
+            }
+            Mthl.server.logger.postMessage(`${mark} *Finished command*\ncommand\n\`\`\`\n${data}\n\`\`\`\nresult\n\`\`\`\n${JSON.stringify(result)}\n\`\`\``);
           }
+          Mthl.stats.increment(`Command/${command.name}/Received`);
           Mthl.processor.addCommand({ command, callback });
         }
         catch (err) {
+          Mthl.stats.increment("ServerErrors");
           this.logger.postMessage(`:x: *Server Error on receiving command*\ncommand\n\`\`\`\n${data}\n\`\`\`\nerror\n\`\`\`\n${err}\n\`\`\``);
         }
       });

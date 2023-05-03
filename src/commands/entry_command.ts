@@ -13,6 +13,8 @@ export interface EntryCommandResult extends CommandResultBase {
 }
 
 export class EntryCommand extends CommandBase<EntryCommandProps, EntryCommandResult> {
+  readonly name: string = "Entry";
+
   constructor(props: EntryCommandProps) {
     super(props);
   }
@@ -43,6 +45,7 @@ export class EntryCommand extends CommandBase<EntryCommandProps, EntryCommandRes
       logger.log(`[Error] ${err}`);
       return {
         success: false,
+        error: err as object,
       };
     }
   }

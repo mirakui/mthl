@@ -13,6 +13,7 @@ export interface CommandResultBase {
 
 export class CommandBase<PropsType extends CommandPropsBase, ResultType extends CommandResultBase> {
   private readonly _props: PropsType;
+  readonly name: string = "Unknown";
 
   constructor(props: PropsType) {
     this._props = props;

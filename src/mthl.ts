@@ -3,6 +3,7 @@ import { Config, ConfigParams } from './config';
 import { HighLowController } from './highlow_controller';
 import { MultiLogger } from './multi_logger';
 import { Server } from './server';
+import { Statistics } from './statistics';
 
 type ConstructorProps = {
   config: ConfigParams;
@@ -10,6 +11,7 @@ type ConstructorProps = {
   server: Server;
   controller: HighLowController;
   processor: CommandProcessor;
+  stats: Statistics;
 }
 
 export class Mthl {
@@ -19,6 +21,7 @@ export class Mthl {
   private _server: Server;
   private _controller: HighLowController;
   private _processor: CommandProcessor;
+  private _stats: Statistics;
 
   constructor(props: ConstructorProps) {
     this._config = props.config;
@@ -26,6 +29,7 @@ export class Mthl {
     this._server = props.server;
     this._controller = props.controller;
     this._processor = props.processor;
+    this._stats = props.stats;
   }
 
   static get config() {
@@ -48,6 +52,10 @@ export class Mthl {
     return Mthl._singleton._processor;
   }
 
+  static get stats() {
+    return Mthl._singleton._stats;
+  }
+
   static setup() {
     const config = Config.load();
 
@@ -63,7 +71,9 @@ export class Mthl {
 
     const processor = new CommandProcessor();
 
-    Mthl._singleton = new Mthl({ config, logger, server, controller, processor });
+    const stats = new Statistics();
+
+    Mthl._singleton = new Mthl({ config, logger, server, controller, processor, stats });
   }
 
   static async start() {

@@ -1,8 +1,9 @@
 import { CommandBase, CommandPropsBase, CommandResultBase } from "./commands/base";
 import Ajv from 'ajv';
-import { EntryCommand, EntryCommandProps } from "./commands/entry_command";
 import { Mthl } from "./mthl";
+import { EntryCommand, EntryCommandProps } from "./commands/entry_command";
 import { EchoCommand, EchoCommandProps } from "./commands/echo_command";
+import { StatsCommand, StatsCommandProps } from "./commands/stats_command";
 
 const EntryCommandSchema = {
   type: "object",
@@ -38,6 +39,21 @@ const EchoCommandSchema = {
   additionalProperties: false,
 }
 
+const StatsCommandSchema = {
+  type: "object",
+  properties: {
+    command: {
+      type: "string",
+      enum: ["Stats"],
+    },
+    clear: {
+      type: "boolean",
+    },
+  },
+  required: ["command"],
+  additionalProperties: false,
+}
+
 export class QueryParserError extends Error { }
 
 export class QueryParser {
@@ -57,10 +73,10 @@ export class QueryParser {
     switch (json.command) {
       case "Echo":
         return this.buildEchoCommand(json);
-        break;
       case "Entry":
         return this.buildEntryCommand(json);
-        break;
+      case "Stats":
+        return this.buildStatsCommand(json);
       default:
         throw new QueryParserError(`Command not supported: "${json.command}" in ${query}`);
     }
@@ -95,12 +111,24 @@ export class QueryParser {
       order: json.order as "high" | "low",
       pairName: json.pairName as "USDJPY" | "EURJPY" | "EURUSD",
       timePeriod: json.timePeriod as "5m" | "15m",
-      // timeRange: json.timeRange,
-      // expectedPrice: json.expectedPrice,
-      // requestedAt: json.requestedAt,
-      // receivedAt: json.receivedAt,
     };
 
     return new EntryCommand(props);
+  }
+
+  buildStatsCommand(json: any): StatsCommand {
+    const ajv = new Ajv();
+    const valid = ajv.validate(StatsCommandSchema, json);
+    if (!valid) {
+      throw new QueryParserError(`Invalid StatsCommand: ${ajv.errorsText()}`);
+    }
+
+    const props: StatsCommandProps = {
+      controller: Mthl.controller,
+      logger: Mthl.logger,
+      clear: json.clear,
+    };
+
+    return new StatsCommand(props);
   }
 }
