@@ -2,6 +2,7 @@ import * as net from "node:net";
 import { Mthl } from "./mthl";
 import { QueryParser } from "./query_parser";
 import { MultiLogger } from "./multi_logger";
+import { CommandResultBase } from "./commands/base";
 
 type ConstructorProps = {
   pipeName: string;
@@ -33,14 +34,19 @@ export class Server {
     this.server = net.createServer(undefined, (socket: net.Socket) => {
       this.logger.log("Client connected");
 
-      socket.on("data", (data: any) => {
+      socket.on("data", (_data) => {
+        let data = "";
         try {
+          data = _data.toString().trim();
           this.logger.log(`Received from client: ${data}`);
-          const cmd = this.queryParser.parse(data);
-          Mthl.processor.addCommand(cmd);
+          const command = this.queryParser.parse(data);
+          const callback = async (result: CommandResultBase) => {
+            Mthl.server.logger.postMessage(`Finished command=\`${data}\`, result=\`${JSON.stringify(result)}\``);
+          }
+          Mthl.processor.addCommand({ command, callback });
         }
         catch (err) {
-          this.logger.log(`Error on receiving command: \`${data}\`, ${err}`);
+          this.logger.postMessage(`Error on receiving command=\`${data}\`, error=\`${err}\``);
         }
       });
 

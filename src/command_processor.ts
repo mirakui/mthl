@@ -2,8 +2,14 @@ import { CommandBase, CommandPropsBase, CommandResultBase } from "./commands/bas
 
 export class CommandProcessorError extends Error { }
 
+export type CommandProcessorCallback<ResultType> = (result: ResultType) => Promise<void>;
+export interface CommandContainer {
+  command: CommandBase<CommandPropsBase, CommandResultBase>;
+  callback?: CommandProcessorCallback<CommandResultBase>;
+}
+
 export class CommandProcessor {
-  queue: CommandBase<CommandPropsBase, CommandResultBase>[];
+  queue: CommandContainer[];
   isRunning: boolean;
 
   constructor() {
@@ -11,8 +17,8 @@ export class CommandProcessor {
     this.isRunning = false;
   }
 
-  addCommand(command: CommandBase<CommandPropsBase, CommandResultBase>) {
-    this.queue.push(command);
+  addCommand(container: CommandContainer) {
+    this.queue.push(container);
     if (!this.isRunning) {
       this.processQueue();
     }
@@ -25,11 +31,15 @@ export class CommandProcessor {
     }
 
     this.isRunning = true;
-    const command = this.queue.shift();
-    if (command === undefined) {
+    const commandContainer = this.queue.shift();
+    if (commandContainer === undefined) {
       throw new CommandProcessorError("Command is undefined");
     }
-    await command.run();
+    const result = await commandContainer.command.run();
+    if (commandContainer.callback !== undefined) {
+      await commandContainer.callback(result);
+    }
+
     this.processQueue();
   }
 }

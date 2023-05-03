@@ -37,10 +37,6 @@ export class MultiLogger {
   private async _log(message: string): Promise<void> {
     const time = formatISO(new Date());
     console.log(`${time} ${message}`);
-    // await this.webClient.chat.postMessage({
-    //   channel: this.channel,
-    //   text: message,
-    // });
   }
 
   async logWithTag(tag: string, message: string, func?: (logger: MultiLogger) => {}): Promise<void> {
@@ -86,6 +82,7 @@ export class MultiLogger {
 
   async uploadImage(image: Buffer): Promise<void> {
     const filename = `image-${formatISO(new Date())}.png`;
+    this.logWithTag("uploadImage", `filename=${filename}`);
     await this.uploadFile({ file: image, filename: filename, type: "png" });
   }
 
@@ -107,5 +104,14 @@ export class MultiLogger {
     }
 
     throw new Error(`Channel not found: ${channelName}`);
+  }
+
+  async postMessage(message: string): Promise<void> {
+    const channel = await this.getChannelId();
+    this.logWithTag("postMessage", `#${this.props.slack.channel}: ${message}`)
+    await this.webClient.chat.postMessage({
+      channel,
+      text: message,
+    })
   }
 }
