@@ -1,6 +1,7 @@
-import { WebClient } from '@slack/web-api';
+import { ErrorCode, CodedError, FileUploadV2, FilesUploadArguments, FilesUploadV2Arguments, WebClient, WebAPIPlatformError } from '@slack/web-api';
 import { formatISO } from 'date-fns'
 import crypto from 'node:crypto';
+import { Stream } from 'node:stream';
 
 type ConstructorProps = {
   slack: {
@@ -15,12 +16,11 @@ type ConstructorProps = {
 export class MultiLogger {
   private readonly props: ConstructorProps;
   private readonly webClient: WebClient;
-  private readonly channel: string;
+  private channelId?: string;
 
   constructor(props: ConstructorProps) {
     this.props = props;
     this.webClient = new WebClient(props.slack.accessToken);
-    this.channel = props.slack.channel;
   }
 
   async log(message: string): Promise<void> {
@@ -63,5 +63,49 @@ export class MultiLogger {
     const randomNumber = Math.random().toString();
     const md5Hash = crypto.createHash('md5').update(randomNumber).digest('hex');
     return md5Hash.slice(-6);
+  }
+
+  async uploadFile(args: FilesUploadV2Arguments): Promise<void> {
+    try {
+      const channelId = await this.getChannelId();
+      await this.webClient.filesUploadV2({ channel_id: channelId, request_file_info: false, ...args });
+    }
+    catch (_err) {
+      let errorDetail = "";
+      const codedError = (_err as CodedError).code
+      if (codedError === ErrorCode.PlatformError) {
+        const err = _err as WebAPIPlatformError;
+        errorDetail = `code=${err.code} data=${JSON.stringify(err.data)}`;
+      }
+      else {
+        errorDetail = `Unexpected error: ${_err}`;
+      }
+      this.logWithTag("uploadFile", `[Error] ${errorDetail}"`);
+    }
+  }
+
+  async uploadImage(image: Buffer): Promise<void> {
+    const filename = `image-${formatISO(new Date())}.png`;
+    await this.uploadFile({ file: image, filename: filename, type: "png" });
+  }
+
+  async getChannelId() {
+    if (this.channelId === undefined) {
+      this.channelId = await this.getChannelIdByName(this.props.slack.channel);
+    }
+    return this.channelId;
+  }
+
+  private async getChannelIdByName(channelName: string): Promise<string> {
+    const result: any = await this.webClient.conversations.list();
+    const channels = result.channels;
+
+    for (const channel of channels) {
+      if (channel.name === channelName) {
+        return channel.id;
+      }
+    }
+
+    throw new Error(`Channel not found: ${channelName}`);
   }
 }

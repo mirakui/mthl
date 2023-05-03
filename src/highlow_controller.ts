@@ -161,6 +161,8 @@ export class HighLowController {
       (elm as HTMLDivElement).click();
     });
 
+    this.postScreenshot();
+
     logger.log("End");
   }
 
@@ -203,15 +205,10 @@ export class HighLowController {
     logger.log("End");
   }
 
-  async login() {
+  async postScreenshot() {
     const page = await this.getPage();
-    if (!page.url().match(/\/login/)) {
-      await this.goto(`${HIGHLOW_APP_URL_BASE}/login`);
-    }
-    await page.waitForSelector('input#login-username');
-    await page.type('input#login-username', 'username', { delay: 100 });
-    await page.type('input#login-password', 'password', { delay: 100 });
-    const btn = await page.$('#login-submit-button');
-    await btn?.click();
+    this.logger.log("postScreenshot");
+    const screenshotBuffer = await page.screenshot({ fullPage: true });
+    await this.logger.uploadImage(screenshotBuffer);
   }
 }
