@@ -1,4 +1,4 @@
-import { CommandBase, CommandPropsBase, CommandResultBase } from "./base";
+import { CommandBase, CommandBuilderBase, CommandPropsBase, CommandResultBase } from "./base";
 
 export interface EntryCommandProps extends CommandPropsBase {
   order: "high" | "low";
@@ -10,6 +10,30 @@ export interface EntryCommandProps extends CommandPropsBase {
 }
 
 export interface EntryCommandResult extends CommandResultBase {
+}
+
+export class EntryCommandBuilder extends CommandBuilderBase<EntryCommandProps> {
+  constructor(json: any) {
+    super(
+      {
+        properties: {
+          order: {
+            type: "string",
+            enum: ["high", "low"],
+          },
+          pairName: {
+            type: "string",
+          },
+        },
+        required: ["order", "pairName"],
+      },
+      json
+    );
+  }
+
+  build(): EntryCommand {
+    return new EntryCommand(this.buildProps());
+  }
 }
 
 export class EntryCommand extends CommandBase<EntryCommandProps, EntryCommandResult> {

@@ -1,5 +1,5 @@
 import { Mthl } from "../mthl";
-import { CommandBase, CommandPropsBase, CommandResultBase } from "./base";
+import { CommandBase, CommandBuilderBase, CommandPropsBase, CommandResultBase, CommandSchema } from "./base";
 
 export interface StatsCommandProps extends CommandPropsBase {
   clear?: boolean;
@@ -8,11 +8,35 @@ export interface StatsCommandProps extends CommandPropsBase {
 export interface StatsCommandResult extends CommandResultBase {
 }
 
+export class StatsCommandBuilder extends CommandBuilderBase<StatsCommandProps> {
+  constructor(json: any) {
+    super(
+      {
+        properties: {
+          clear: {
+            type: "boolean"
+          }
+        }
+      },
+      json
+    );
+  }
+
+  build(): StatsCommand {
+    const props: StatsCommandProps = {
+      clear: true,
+      silent: true,
+      ...this.buildProps()
+    };
+    return new StatsCommand(props);
+  }
+}
+
 export class StatsCommand extends CommandBase<StatsCommandProps, StatsCommandResult> {
   readonly name = "Stats";
 
   constructor(props: StatsCommandProps) {
-    super({ clear: true, silent: true, ...props });
+    super(props);
   }
 
   async run(): Promise<StatsCommandResult> {
