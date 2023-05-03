@@ -97,11 +97,7 @@ export class HighLowController {
     logger.log("Start");
     await this.goDashboard();
 
-    // page.$x(`//span[contains(text(),"${pairName}")]`)
-    // page.$x('//div[contains(@class,"OptionItem_container")]//span[contains(@class,"OptionItem_ticker") and contains(text(), "USD/JPY")]')
-
     const selector = 'div[class*="OptionItem_container"]'
-    // await page.waitForSelector(selector);
     logger.log(`Wait for network idle`);
     await page.waitForNetworkIdle();
     const containers = await page.$$(selector);
@@ -112,8 +108,6 @@ export class HighLowController {
       if (ticker == pairName && duration == "15分") {
         logger.log(`Click: ticker=${ticker}, duration=${duration}`);
         await container.click();
-        // const pairNameFunction = `$(\"div[class^='ChartInfo_optionAssetName']\").textContent === '${pairName}'`
-        // logger.log(`waitForFunction: ${pairNameFunction}`);
         logger.log(`Wait for network idle`);
         await page.waitForNetworkIdle();
         const currentPairName = await page.$eval("div[class^='ChartInfo_optionAssetName']", elm => elm.textContent);
@@ -175,14 +169,25 @@ export class HighLowController {
 
   async fetchBalance(): Promise<number> {
     const page = await this.getPage();
+    const logger = this.logger.createLoggerWithTag("fetchBalance");
+    logger.log("Start");
     await this.goto(`${HIGHLOW_URL_BASE}/my-account/trading/trade-action-history`);
-    const balanceSpan = await page.$("span.emphasized.eng.accountBalancePolled");
-    const balance = await balanceSpan?.evaluate(node => node.textContent);
+    const selector = "span.emphasized.eng.accountBalancePolled";
+    logger.log(`Wait for selector: ${selector}`);
+    await page.waitForSelector(selector);
+    logger.log(`Wait for function`);
+    await page.waitForFunction(async selector => {
+      const elm = document.querySelector(selector);
+      return elm !== null && elm.textContent?.match(/[0-9]/)
+    }, {}, selector);
+    const balance = await page.$eval(selector, elm => elm.textContent);
+    this.logger.log(`balance: ${balance}`);
+    logger.log("End");
     return this.parseBalance(balance || '0');
   }
 
   private parseBalance(balance: string): number {
-    return parseFloat(balance.replace(/[¥,]/g, ''));
+    return parseFloat(balance.replace(/[^0-9\.]/g, ''));
   }
 
   async goto(url: string) {
@@ -192,9 +197,6 @@ export class HighLowController {
     if (page.url() !== url) {
       logger.log(`page.goto: ${url}`);
       await page.goto(url);
-      // logger.log("page.waitForNavigation");
-      // await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 10000 });
-      // logger.log("page.waitForNavigation: done");
     }
     else {
       logger.log("Already in the page");
