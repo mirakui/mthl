@@ -12,7 +12,7 @@ export class StatsCommand extends CommandBase<StatsCommandProps, StatsCommandRes
   readonly name = "Stats";
 
   constructor(props: StatsCommandProps) {
-    super({ ...props, clear: true });
+    super({ clear: true, silent: true, ...props });
   }
 
   async run(): Promise<StatsCommandResult> {

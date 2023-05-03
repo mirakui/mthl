@@ -42,16 +42,17 @@ export class Server {
           this.logger.log(`Received from client: ${data}`);
           const command = this.queryParser.parse(data);
           const callback = async (result: CommandResultBase) => {
-            let mark: string;
+            const resultMessage = `*Finished command*\ncommand\n\`\`\`\n${data}\n\`\`\`\nresult\n\`\`\`\n${JSON.stringify(result)}\n\`\`\``;
             if (result.success) {
-              mark = ":white_check_mark:";
               Mthl.stats.increment(`Command/${command.name}/Success`);
+              if (!command.props.silent) {
+                Mthl.server.logger.postMessage(`:white_check_mark: ${resultMessage}`);
+              }
             }
             else {
-              mark = ":x:";
               Mthl.stats.increment(`Command/${command.name}/Failure`);
+              Mthl.server.logger.postMessage(`:x: ${resultMessage}`);
             }
-            Mthl.server.logger.postMessage(`${mark} *Finished command*\ncommand\n\`\`\`\n${data}\n\`\`\`\nresult\n\`\`\`\n${JSON.stringify(result)}\n\`\`\``);
           }
           Mthl.stats.increment(`Command/${command.name}/Received`);
           Mthl.processor.addCommand({ command, callback });

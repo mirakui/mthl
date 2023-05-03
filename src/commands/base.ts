@@ -4,6 +4,7 @@ import { MultiLogger } from "src/multi_logger";
 export interface CommandPropsBase {
   controller: HighLowController
   logger: MultiLogger
+  silent?: boolean
 }
 
 export interface CommandResultBase {
