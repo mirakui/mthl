@@ -1,7 +1,6 @@
-import { ErrorCode, CodedError, FileUploadV2, FilesUploadArguments, FilesUploadV2Arguments, WebClient, WebAPIPlatformError } from '@slack/web-api';
-import { formatISO } from 'date-fns'
+import { ErrorCode, CodedError, FilesUploadV2Arguments, WebClient, WebAPIPlatformError } from '@slack/web-api';
+import { formatISO } from 'date-fns';
 import crypto from 'node:crypto';
-import { Stream } from 'node:stream';
 
 type ConstructorProps = {
   slack: {

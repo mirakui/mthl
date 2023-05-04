@@ -6,6 +6,7 @@ export type ConfigParams = {
   account: "production" | "demo";
   slack: {
     accessToken: string;
+    appToken: string;
     channel: string;
   },
   server: {

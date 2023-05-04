@@ -34,33 +34,7 @@ export class Server {
     this.server = net.createServer(undefined, (socket: net.Socket) => {
       this.logger.log("Client connected");
 
-      socket.on("data", (_data) => {
-        let data = "";
-        try {
-          data = _data.toString().trim();
-          this.logger.log(`Received from client: ${data}`);
-          const command = this.queryParser.parse(data);
-          const callback = async (result: CommandResultBase) => {
-            const resultMessage = `*Finished command*\ncommand\n\`\`\`\n${data}\n\`\`\`\nresult\n\`\`\`\n${JSON.stringify(result)}\n\`\`\``;
-            if (result.success) {
-              Mthl.stats.increment(`Command/${command.name}/Success`);
-              if (!command.props.silent) {
-                Mthl.server.logger.postMessage(`:white_check_mark: ${resultMessage}`);
-              }
-            }
-            else {
-              Mthl.stats.increment(`Command/${command.name}/Failure`);
-              Mthl.server.logger.postMessage(`:x: ${resultMessage}`);
-            }
-          }
-          Mthl.stats.increment(`Command/${command.name}/Received`);
-          Mthl.processor.addCommand({ command, callback });
-        }
-        catch (err) {
-          Mthl.stats.increment("ServerErrors");
-          this.logger.postMessage(`:x: *Server Error on receiving command*\ncommand\n\`\`\`\n${data}\n\`\`\`\nerror\n\`\`\`\n${err}\n\`\`\``);
-        }
-      });
+      socket.on("data", this.onData);
 
       socket.on("end", () => {
         this.logger.log("Client disconnected");
@@ -74,5 +48,33 @@ export class Server {
     this.server.listen(this.pipePath, () => {
       this.logger.log(`Listening: ${this.pipePath}`);
     });
+  }
+
+  onData(_data: string) {
+    let data = "";
+    try {
+      data = _data.toString().trim();
+      this.logger.log(`Received from client: ${data}`);
+      const command = this.queryParser.parse(data);
+      const callback = async (result: CommandResultBase) => {
+        const resultMessage = `*Finished command*\ncommand\n\`\`\`\n${data}\n\`\`\`\nresult\n\`\`\`\n${JSON.stringify(result)}\n\`\`\``;
+        if (result.success) {
+          Mthl.stats.increment(`Command/${command.name}/Success`);
+          if (!command.props.silent) {
+            Mthl.server.logger.postMessage(`:white_check_mark: ${resultMessage}`);
+          }
+        }
+        else {
+          Mthl.stats.increment(`Command/${command.name}/Failure`);
+          Mthl.server.logger.postMessage(`:x: ${resultMessage}`);
+        }
+      }
+      Mthl.stats.increment(`Command/${command.name}/Received`);
+      Mthl.processor.addCommand({ command, callback });
+    }
+    catch (err) {
+      Mthl.stats.increment("ServerErrors");
+      this.logger.postMessage(`:x: *Server Error on receiving command*\ncommand\n\`\`\`\n${data}\n\`\`\`\nerror\n\`\`\`\n${err}\n\`\`\``);
+    }
   }
 }

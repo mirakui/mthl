@@ -3,6 +3,7 @@ import { Config, ConfigParams } from './config';
 import { HighLowController } from './highlow_controller';
 import { MultiLogger } from './multi_logger';
 import { Server } from './server';
+import { SlackBot } from './slack_bot';
 import { Statistics } from './statistics';
 
 type ConstructorProps = {
@@ -12,6 +13,7 @@ type ConstructorProps = {
   controller: HighLowController;
   processor: CommandProcessor;
   stats: Statistics;
+  slackBot: SlackBot;
 }
 
 export class Mthl {
@@ -22,6 +24,7 @@ export class Mthl {
   private _controller: HighLowController;
   private _processor: CommandProcessor;
   private _stats: Statistics;
+  private _slackBot: SlackBot;
 
   constructor(props: ConstructorProps) {
     this._config = props.config;
@@ -30,6 +33,7 @@ export class Mthl {
     this._controller = props.controller;
     this._processor = props.processor;
     this._stats = props.stats;
+    this._slackBot = props.slackBot;
   }
 
   static get config() {
@@ -56,6 +60,10 @@ export class Mthl {
     return Mthl._singleton._stats;
   }
 
+  static get slackBot() {
+    return Mthl._singleton._slackBot;
+  }
+
   static setup() {
     const config = Config.load();
 
@@ -73,12 +81,15 @@ export class Mthl {
 
     const stats = new Statistics();
 
-    Mthl._singleton = new Mthl({ config, logger, server, controller, processor, stats });
+    const slackBot = new SlackBot({ botToken: config.slack.accessToken, appToken: config.slack.appToken });
+
+    Mthl._singleton = new Mthl({ config, logger, server, controller, processor, stats, slackBot });
   }
 
   static async start() {
     Mthl.logger.log("Start!");
     await Mthl.controller.goDashboard();
     Mthl.server.start();
+    Mthl.slackBot.start();
   }
 }
