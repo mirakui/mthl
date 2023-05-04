@@ -52,6 +52,7 @@ export class HighLowController {
         this.logger.log("newPage");
         this._page = await browser.newPage();
       }
+      this._page.setDefaultTimeout(Mthl.config.browser.timeout);
     }
     return this._page;
   }

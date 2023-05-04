@@ -10,6 +10,9 @@ export type ConfigParams = {
   },
   server: {
     pipeName: string;
+  },
+  browser: {
+    timeout: number;
   }
 }
 

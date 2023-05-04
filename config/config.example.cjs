@@ -6,5 +6,8 @@ module.exports = {
   },
   server: {
     pipeName: "mthl",
+  },
+  browser: {
+    timeout: 5000,
   }
 }
