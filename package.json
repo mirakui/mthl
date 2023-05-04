@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "license": "UNLICENSED",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "start": "ts-node src/main.ts"
   },
   "devDependencies": {
     "@tsconfig/node16": "^1.0.3",
