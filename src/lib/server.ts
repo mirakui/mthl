@@ -50,7 +50,7 @@ export class Server {
     });
   }
 
-  onData(_data: string) {
+  onData = (_data: string) => {
     let data = "";
     try {
       data = _data.toString().trim();

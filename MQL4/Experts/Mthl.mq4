@@ -13,7 +13,9 @@
 #property strict
 
 extern string IndicatorName = "TESTarrow";
-extern string PipeName = "\\\\.\\pipe\\myNamedPipe";
+extern string PipeName = "\\\\.\\pipe\\mthl";
+extern int BufferHigh = 0;
+extern int BufferLow = 1;
 
 datetime LastBarTime;
 int LastPeriod;
@@ -22,15 +24,12 @@ int Pipe = INVALID_HANDLE;
 int OnInit() {
   LastBarTime = iTime(NULL, 0, 0);
   LastPeriod = Period();
-
-  OpenPipe();
-  SendMessage("HELLO!!!");
+  SendMessage("{ \"command\": \"Echo\", \"message\": \"MT4 EA Loaded\" }");
 
   return(INIT_SUCCEEDED);
 }
 
 void OnDeinit(const int reason) {
-  ClosePipe();
 }
 
 void OnTick() {
@@ -38,18 +37,20 @@ void OnTick() {
 
   if (!IsNewTick()) { return; }
 
-  signalValue = DetectSignal(IndicatorName, 0);
+  signalValue = DetectSignal(IndicatorName, BufferHigh);
   if (signalValue != 0) {
-    Alert("Signal detected at bar 0 with value ", signalValue);
+    Alert("Signal detected at buffer " + IntegerToString(BufferHigh) + " (BufferHigh) with value ", signalValue);
+    SendMessage("{ \"command\": \"Entry\", \"order\": \"high\", \"pairName\": \"" + Symbol() + "\", \"expectedPrice\": " + DoubleToString(signalValue) + " }");
   }
-  signalValue = DetectSignal(IndicatorName, 1);
+  signalValue = DetectSignal(IndicatorName, BufferLow);
   if (signalValue != 0) {
-    Alert("Signal detected at bar 1 with value ", signalValue);
+    Alert("Signal detected at buffer " + IntegerToString(BufferLow) + " (BufferLow) with value ", signalValue);
+    SendMessage("{ \"command\": \"Entry\", \"order\": \"high\", \"pairName\": \"" + Symbol() + "\", \"expectedPrice\": " + DoubleToString(signalValue) + " }");
   }
 
   int currentPeriod = Period();
   datetime currentBarTime = iTime(NULL, 0, 0);
-  Print("currentBarTime = " + TimeToString(currentBarTime, TIME_DATE | TIME_SECONDS) + " | " + EnumToString((ENUM_TIMEFRAMES)currentPeriod));
+  Print("Symbol=" + Symbol() + ", currentBarTime = " + TimeToString(currentBarTime, TIME_DATE | TIME_SECONDS) + " | " + EnumToString((ENUM_TIMEFRAMES)currentPeriod));
 }
 
 bool IsNewTick() {
@@ -98,6 +99,7 @@ void ClosePipe() {
 }
 
 int SendMessage(string message) {
+  OpenPipe();
   FileWriteString(Pipe, message + "\r\n");
 
   int lastError = GetLastError();
@@ -107,6 +109,7 @@ int SendMessage(string message) {
   else {
     Print("[ERROR] SendMessage: " + message + " / Error: " + ErrorDescription(lastError));
   }
+  ClosePipe();
 
   return lastError;
 }

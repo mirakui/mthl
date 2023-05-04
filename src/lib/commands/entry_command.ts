@@ -24,6 +24,9 @@ export class EntryCommandBuilder extends CommandBuilderBase<EntryCommandProps> {
           pairName: {
             type: "string",
           },
+          expectedPrice: {
+            type: "number",
+          },
         },
         required: ["order", "pairName"],
       },
@@ -49,7 +52,7 @@ export class EntryCommand extends CommandBase<EntryCommandProps, EntryCommandRes
       logger.log("Start");
       await this.controller.goDashboard();
       await this.controller.enableOneClickTrading();
-      await this.controller.selectPair(this.props.pairName);
+      await this.controller.selectPair(this.normalizePairName(this.props.pairName));
       switch (this.props.order) {
         case "high":
           await this.controller.entry("high");
@@ -71,6 +74,15 @@ export class EntryCommand extends CommandBase<EntryCommandProps, EntryCommandRes
         success: false,
         error: err as object,
       };
+    }
+  }
+
+  normalizePairName(pairName: string): string {
+    if (pairName.match(/^[A-Z]{6}$/)) {
+      return pairName.slice(0, 3) + "/" + pairName.slice(3);
+    }
+    else {
+      return pairName;
     }
   }
 }
