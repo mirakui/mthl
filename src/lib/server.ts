@@ -3,7 +3,6 @@ import { Mthl } from "./mthl";
 import { QueryParser } from "./query_parser";
 import { MultiLogger } from "./multi_logger";
 import { CommandResultBase } from "./commands/base";
-import { CommandProcessorCallback } from "./command_processor";
 
 type ConstructorProps = {
   pipeName: string;

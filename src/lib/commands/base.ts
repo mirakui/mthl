@@ -1,7 +1,7 @@
 import Ajv from "ajv";
 import { Mthl } from "../mthl";
-import { HighLowController } from "src/highlow_controller";
-import { MultiLogger } from "src/multi_logger";
+import { HighLowController } from "../highlow_controller";
+import { MultiLogger } from "../multi_logger";
 
 export interface CommandPropsBase {
   controller: HighLowController

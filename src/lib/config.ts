@@ -29,7 +29,7 @@ const ConfigParamsSchema = {
 
 export class Config {
   static load(): ConfigParams {
-    const configParams: ConfigParams = require('../config/config.cjs');
+    const configParams: ConfigParams = require('../../config/config.cjs');
     return configParams;
   }
 
