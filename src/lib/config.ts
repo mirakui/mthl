@@ -5,16 +5,22 @@ import Ajv from 'ajv';
 export type ConfigParams = {
   account: "production" | "demo";
   slack: {
-    accessToken: string;
-    appToken: string;
-    channel: string;
+    accessToken: string,
+    appToken: string,
+    channel: string,
   },
   server: {
-    pipeName: string;
+    pipeName: string,
   },
   browser: {
-    timeout: number;
-  }
+    timeout: number,
+  },
+  cron: {
+    schedules: {
+      schedule: string,
+      query: object,
+    }[],
+  },
 }
 
 const ConfigParamsSchema = {

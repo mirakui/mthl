@@ -1,3 +1,4 @@
+import { formatISO } from "date-fns";
 import { Mthl } from "../mthl";
 import { CommandBase, CommandBuilderBase, CommandPropsBase, CommandResultBase, CommandSchema } from "./base";
 
@@ -43,7 +44,11 @@ export class StatsCommand extends CommandBase<StatsCommandProps, StatsCommandRes
     const logger = this.logger.createLoggerWithTag("StatsCommand");
     try {
       logger.log("Start");
-      const message = `:bar_chart: *Statistics*\n\`\`\`\n${Mthl.stats.toString()}\n\`\`\``;
+      const time = formatISO(new Date());
+      const message = `:bar_chart: *Statistics at ${time}* (clear=${this.props.clear})\n` +
+        "```\n" +
+        `${Mthl.stats.toString()}\n` +
+        "```";
       logger.postMessage(message);
       if (this.props.clear) {
         Mthl.stats.clear();

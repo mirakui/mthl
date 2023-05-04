@@ -1,5 +1,6 @@
 import { CommandProcessor } from './command_processor';
 import { Config, ConfigParams } from './config';
+import { Cron } from './cron';
 import { HighLowController } from './highlow_controller';
 import { MultiLogger } from './multi_logger';
 import { Server } from './server';
@@ -14,6 +15,7 @@ type ConstructorProps = {
   processor: CommandProcessor;
   stats: Statistics;
   slackBot: SlackBot;
+  cron: Cron;
 }
 
 export class Mthl {
@@ -25,6 +27,7 @@ export class Mthl {
   private _processor: CommandProcessor;
   private _stats: Statistics;
   private _slackBot: SlackBot;
+  private _cron: Cron;
 
   constructor(props: ConstructorProps) {
     this._config = props.config;
@@ -34,6 +37,7 @@ export class Mthl {
     this._processor = props.processor;
     this._stats = props.stats;
     this._slackBot = props.slackBot;
+    this._cron = props.cron
   }
 
   static get config() {
@@ -64,6 +68,10 @@ export class Mthl {
     return Mthl._singleton._slackBot;
   }
 
+  static get cron() {
+    return Mthl._singleton._cron;
+  }
+
   static setup() {
     const config = Config.load();
 
@@ -83,7 +91,9 @@ export class Mthl {
 
     const slackBot = new SlackBot({ botToken: config.slack.accessToken, appToken: config.slack.appToken });
 
-    Mthl._singleton = new Mthl({ config, logger, server, controller, processor, stats, slackBot });
+    const cron = new Cron(config.cron);
+
+    Mthl._singleton = new Mthl({ config, logger, server, controller, processor, stats, slackBot, cron });
   }
 
   static async start() {
@@ -91,5 +101,6 @@ export class Mthl {
     await Mthl.controller.goDashboard();
     Mthl.server.start();
     Mthl.slackBot.start();
+    Mthl.cron.start();
   }
 }
