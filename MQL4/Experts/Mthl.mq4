@@ -24,7 +24,6 @@ int Pipe = INVALID_HANDLE;
 int OnInit() {
   LastBarTime = iTime(NULL, 0, 0);
   LastPeriod = Period();
-  SendMessage("{ \"command\": \"Echo\", \"message\": \"MT4 EA Loaded\" }");
 
   return(INIT_SUCCEEDED);
 }
@@ -39,12 +38,12 @@ void OnTick() {
 
   signalValue = DetectSignal(IndicatorName, BufferHigh);
   if (signalValue != 0) {
-    Alert("Signal detected at buffer " + IntegerToString(BufferHigh) + " (BufferHigh) with value ", signalValue);
+    Print("Signal detected at buffer " + IntegerToString(BufferHigh) + " (BufferHigh) with value ", signalValue);
     SendMessage("{ \"command\": \"Entry\", \"order\": \"high\", \"pairName\": \"" + Symbol() + "\", \"expectedPrice\": " + DoubleToString(signalValue) + " }");
   }
   signalValue = DetectSignal(IndicatorName, BufferLow);
   if (signalValue != 0) {
-    Alert("Signal detected at buffer " + IntegerToString(BufferLow) + " (BufferLow) with value ", signalValue);
+    Print("Signal detected at buffer " + IntegerToString(BufferLow) + " (BufferLow) with value ", signalValue);
     SendMessage("{ \"command\": \"Entry\", \"order\": \"high\", \"pairName\": \"" + Symbol() + "\", \"expectedPrice\": " + DoubleToString(signalValue) + " }");
   }
 
