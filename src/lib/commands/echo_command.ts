@@ -8,6 +8,8 @@ export interface EchoCommandResult extends CommandResultBase {
 }
 
 export class EchoCommandBuilder extends CommandBuilderBase<EchoCommandProps> {
+  readonly name = "Echo";
+
   constructor(json: any) {
     super(
       {

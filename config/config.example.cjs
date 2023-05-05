@@ -10,6 +10,8 @@ module.exports = {
   },
   browser: {
     timeout: 10000,
+    host: "127.0.0.1",
+    port: 9222,
   },
   cron: {
     schedules: [

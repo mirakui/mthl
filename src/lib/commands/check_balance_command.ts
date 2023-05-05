@@ -40,7 +40,13 @@ export class CheckBalanceCommand extends CommandBase<CheckBalanceCommandProps, C
       const currentBalance = await this.controller.fetchBalance();
       logger.log(`Previous=${this.previousBalance}, Current=${currentBalance}`);
 
-      if (this.previousBalance !== undefined && currentBalance !== this.previousBalance) {
+      // first time
+      if (this.previousBalance === undefined) {
+        const balanceStr = this.formatPrice(currentBalance);
+        this.logger.postMessage(`:moneybag: *Current Balance *\n${balanceStr}\n`);
+        await this.controller.postScreenshot();
+      }
+      else if (currentBalance !== this.previousBalance) {
         const diff = currentBalance - this.previousBalance;
         const diffStr = this.formatPrice(diff, true);
         const balanceStr = this.formatPrice(currentBalance);

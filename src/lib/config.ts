@@ -14,6 +14,8 @@ export type ConfigParams = {
   },
   browser: {
     timeout: number,
+    host: string,
+    port: number,
   },
   cron: {
     schedules: {

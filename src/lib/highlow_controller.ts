@@ -25,21 +25,37 @@ export class HighLowController {
   }
 
   async launchBrowser(): Promise<puppeteer.Browser> {
-    const wsEndpoint = process.env["WS_ENDPOINT"];
-    if (wsEndpoint) {
-      this.logger.log("Connecting to existing browser: " + wsEndpoint);
-      return await puppeteer.connect({
-        browserWSEndpoint: wsEndpoint,
-        defaultViewport: null
-      });
-    } else {
-      this.logger.log("Launching new browser");
-      return await puppeteer.launch({
-        headless: false,
-        defaultViewport: null,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      });
+    const wsEndpoint = await this.getWsEndpoint();
+    this.logger.log("Connecting to existing browser: " + wsEndpoint);
+    return await puppeteer.connect({
+      browserWSEndpoint: wsEndpoint,
+      defaultViewport: null
+    });
+  }
+
+  async getWsEndpoint(): Promise<string> {
+    const logger = this.logger.createLoggerWithTag("getWsEndpoint")
+    const url = `http://${Mthl.config.browser.host}:${Mthl.config.browser.port}/json/version`;
+    logger.log(`Fetching ${url}`);
+    const response = await fetch(url);
+
+    if (response.status !== 200) {
+      throw new HighLowControllerError(`Failed to fetch: ${response.status} ${response.statusText}`);
     }
+    else if (response.body === null) {
+      throw new HighLowControllerError(`Failed to fetch: body is null`);
+    }
+
+    const body = await response.text();
+    logger.log(`body=${body}`);
+
+    const json = JSON.parse(body);
+    const wsEndpoint = json.webSocketDebuggerUrl;
+
+    if (wsEndpoint === undefined || wsEndpoint.match(/^ws:/) === null) {
+      throw new HighLowControllerError(`Unexpected webSocketDebuggerUrl: ${wsEndpoint}`);
+    }
+    return wsEndpoint;
   }
 
   async getPage(): Promise<puppeteer.Page> {
