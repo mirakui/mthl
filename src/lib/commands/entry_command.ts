@@ -1,4 +1,6 @@
+import { Mthl } from "../mthl";
 import { CommandBase, CommandBuilderBase, CommandPropsBase, CommandResultBase } from "./base";
+import { Throttling } from "../throttling";
 
 export interface EntryCommandProps extends CommandPropsBase {
   order: "high" | "low";
@@ -41,40 +43,57 @@ export class EntryCommandBuilder extends CommandBuilderBase<EntryCommandProps> {
 
 export class EntryCommand extends CommandBase<EntryCommandProps, EntryCommandResult> {
   readonly name: string = "Entry";
+  static _throttling?: Throttling<EntryCommandResult>;
 
   constructor(props: EntryCommandProps) {
     super(props);
   }
 
+  get throttling(): Throttling<EntryCommandResult> {
+    if (EntryCommand._throttling === undefined) {
+      EntryCommand._throttling = new Throttling(Mthl.config.entry.rateLimitPerMinute, 60 * 1000 * 1000);
+    }
+    return EntryCommand._throttling;
+  }
+
   async run(): Promise<EntryCommandResult> {
     const logger = this.logger.createLoggerWithTag("EntryCommand");
+    const status = this.throttling.status();
+    logger.log(`Throttling: ${status}`);
     try {
-      logger.log("Start");
-      await this.controller.goDashboard();
-      await this.controller.enableOneClickTrading();
-      await this.controller.selectPair(this.normalizePairName(this.props.pairName));
-      switch (this.props.order) {
-        case "high":
-          await this.controller.entry("high");
-          break;
-        case "low":
-          await this.controller.entry("low");
-          break;
-        default:
-          throw new Error(`Invalid order: ${this.props.order}`);
-      }
-      logger.log("End");
-      return {
-        success: true,
-      };
+      return await this.throttling.throttle(this._run);
     }
-    catch (err) {
+    catch (err: any) {
       logger.log(`[Error] ${err}`);
-      return {
+      const result = {
         success: false,
-        error: err as object,
+        error: err.toString(),
       };
+      console.log("result", result, JSON.stringify(err));
+      return result;
     }
+  }
+
+  private _run = async (): Promise<EntryCommandResult> => {
+    const logger = this.logger.createLoggerWithTag("EntryCommand");
+    logger.log("Start");
+    await this.controller.goDashboard();
+    await this.controller.enableOneClickTrading();
+    await this.controller.selectPair(this.normalizePairName(this.props.pairName));
+    switch (this.props.order) {
+      case "high":
+        await this.controller.entry("high");
+        break;
+      case "low":
+        await this.controller.entry("low");
+        break;
+      default:
+        throw new Error(`Invalid order: ${this.props.order}`);
+    }
+    logger.log("End");
+    return {
+      success: true,
+    };
   }
 
   normalizePairName(pairName: string): string {

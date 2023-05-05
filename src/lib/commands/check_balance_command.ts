@@ -64,11 +64,11 @@ export class CheckBalanceCommand extends CommandBase<CheckBalanceCommandProps, C
         success: true,
       }
     }
-    catch (err) {
+    catch (err: any) {
       this.logger.log(`[Error] ${err}`);
       return {
         success: false,
-        error: err as Error,
+        error: err.toString(),
       };
     }
   }

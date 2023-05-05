@@ -11,7 +11,7 @@ export interface CommandPropsBase {
 
 export interface CommandResultBase {
   success: boolean;
-  error?: object;
+  error?: any
 }
 
 export interface CommandSchema {

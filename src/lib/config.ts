@@ -23,6 +23,9 @@ export type ConfigParams = {
       query: object,
     }[],
   },
+  entry: {
+    rateLimitPerMinute: number,
+  }
 }
 
 const ConfigParamsSchema = {

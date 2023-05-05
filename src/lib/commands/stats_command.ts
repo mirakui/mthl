@@ -58,10 +58,11 @@ export class StatsCommand extends CommandBase<StatsCommandProps, StatsCommandRes
         success: true,
       };
     }
-    catch (err) {
+    catch (err: any) {
       logger.log(`[Error] ${err}`);
       return {
         success: false,
+        error: err.toString(),
       };
     }
   }

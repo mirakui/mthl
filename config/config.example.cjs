@@ -28,5 +28,8 @@ module.exports = {
         query: { command: "Stats", clear: false },
       },
     ]
+  },
+  entry: {
+    rateLimitPerMinute: 2,
   }
 }
