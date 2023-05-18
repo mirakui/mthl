@@ -77,6 +77,7 @@ export class EntryCommand extends CommandBase<EntryCommandProps, EntryCommandRes
   private _run = async (): Promise<EntryCommandResult> => {
     const logger = this.logger.createLoggerWithTag("EntryCommand");
     logger.log("Start");
+    await this.controller.bringToFront();
     await this.controller.goDashboard();
     await this.controller.enableOneClickTrading();
     await this.controller.selectPair(this.normalizePairName(this.props.pairName));

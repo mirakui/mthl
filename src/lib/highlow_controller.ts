@@ -25,12 +25,30 @@ export class HighLowController {
   }
 
   async launchBrowser(): Promise<puppeteer.Browser> {
-    const wsEndpoint = await this.getWsEndpoint();
-    this.logger.log("Connecting to existing browser: " + wsEndpoint);
-    return await puppeteer.connect({
-      browserWSEndpoint: wsEndpoint,
-      defaultViewport: null
-    });
+    const conf = Mthl.config.browser;
+    if (conf.launch) {
+      let opts: puppeteer.PuppeteerLaunchOptions = {
+        headless: conf.headless,
+        defaultViewport: null,
+        debuggingPort: conf.port,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+        ],
+      }
+      this.logger.log(`Launching new browser: ${JSON.stringify(opts)}`);
+      return await puppeteer.launch(opts);
+    }
+    else {
+      const wsEndpoint = await this.getWsEndpoint();
+      this.logger.log("Connecting to existing browser: " + wsEndpoint);
+      return await puppeteer.connect({
+        browserWSEndpoint: wsEndpoint,
+        defaultViewport: null
+      });
+    }
+
+
   }
 
   async getWsEndpoint(): Promise<string> {
@@ -229,5 +247,10 @@ export class HighLowController {
     this.logger.log("postScreenshot");
     const screenshotBuffer = await page.screenshot({ fullPage: true });
     await this.logger.uploadImage(screenshotBuffer);
+  }
+
+  async bringToFront() {
+    const page = await this.getPage();
+    await page.bringToFront();
   }
 }

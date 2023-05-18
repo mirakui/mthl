@@ -16,6 +16,8 @@ export type ConfigParams = {
     timeout: number,
     host: string,
     port: number,
+    launch: boolean,
+    headless: boolean,
   },
   cron: {
     schedules: {

@@ -37,6 +37,7 @@ export class CheckBalanceCommand extends CommandBase<CheckBalanceCommandProps, C
     const logger = this.logger.createLoggerWithTag("CheckBalanceCommand");
     try {
       logger.log("Start");
+      await this.controller.bringToFront();
       const currentBalance = await this.controller.fetchBalance();
       logger.log(`Previous=${this.previousBalance}, Current=${currentBalance}`);
 
