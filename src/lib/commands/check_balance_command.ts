@@ -47,11 +47,11 @@ export class CheckBalanceCommand extends CommandBase<CheckBalanceCommandProps, C
         this.logger.postMessage(`:moneybag: *Current Balance *\n${balanceStr}\n`);
         await this.controller.postScreenshot();
       }
-      else if (currentBalance !== this.previousBalance) {
+      else {
         const diff = currentBalance - this.previousBalance;
         const diffStr = this.formatPrice(diff, true);
         const balanceStr = this.formatPrice(currentBalance);
-        let emoji = diff > 0 ? ":moneybag:" : ":money_with_wings:";
+        let emoji = diff >= 0 ? ":moneybag:" : ":money_with_wings:";
 
         this.logger.postMessage(`${emoji} *Balance updated*\n${balanceStr} (${diffStr})\n`);
         await this.controller.postScreenshot();
