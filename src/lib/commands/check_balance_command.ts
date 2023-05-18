@@ -1,6 +1,7 @@
 import { CommandBase, CommandBuilderBase, CommandPropsBase, CommandResultBase } from "./base";
 
 export interface CheckBalanceCommandProps extends CommandPropsBase {
+  force?: boolean;
 }
 
 export interface CheckBalanceCommandResult extends CommandResultBase {
@@ -8,7 +9,16 @@ export interface CheckBalanceCommandResult extends CommandResultBase {
 
 export class CheckBalanceCommandBuilder extends CommandBuilderBase<CheckBalanceCommandProps> {
   constructor(json: any) {
-    super({}, json);
+    super(
+      {
+        properties: {
+          force: {
+            type: "boolean",
+          },
+        },
+      },
+      json
+    );
   }
 
   build(): CheckBalanceCommand {
@@ -47,7 +57,7 @@ export class CheckBalanceCommand extends CommandBase<CheckBalanceCommandProps, C
         this.logger.postMessage(`:moneybag: *Current Balance *\n${balanceStr}\n`);
         await this.controller.postScreenshot();
       }
-      else {
+      else if (this.previousBalance !== currentBalance || this.props.force) {
         const diff = currentBalance - this.previousBalance;
         const diffStr = this.formatPrice(diff, true);
         const balanceStr = this.formatPrice(currentBalance);

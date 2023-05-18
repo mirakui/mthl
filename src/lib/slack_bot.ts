@@ -45,7 +45,7 @@ export class SlackBot {
       ack();
 
       try {
-        Mthl.server.onData('{ "command": "CheckBalance" }');
+        Mthl.server.onData('{ "command": "CheckBalance", "force": true }');
       }
       catch (error) {
         this.logger.log(`[ERROR] ${error}`);
