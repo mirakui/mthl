@@ -52,6 +52,30 @@ export class SlackBot {
       }
     });
 
+    this.app.shortcut("warmup", async ({ shortcut, ack, context, logger }) => {
+      this.logger.log("Received shortcut: warmup");
+      ack();
+
+      try {
+        Mthl.server.onData('{ "command": "Warmup" }');
+      }
+      catch (error) {
+        this.logger.log(`[ERROR] ${error}`);
+      }
+    });
+
+    this.app.shortcut("screenshot", async ({ shortcut, ack, context, logger }) => {
+      this.logger.log("Received shortcut: screenshot");
+      ack();
+
+      try {
+        Mthl.server.onData('{ "command": "Screenshot" }');
+      }
+      catch (error) {
+        this.logger.log(`[ERROR] ${error}`);
+      }
+    });
+
     this.app.shortcut("shutdown", async ({ shortcut, ack, context, logger }) => {
       this.logger.log("Received shortcut: shutdown");
       ack();

@@ -108,9 +108,9 @@ export class HighLowController {
     }
   }
 
-  async goDashboard() {
+  async goDashboard(force?: boolean) {
     const page = await this.getPage();
-    if (page.url() === this.dashboardUrl) {
+    if (!force && page.url() === this.dashboardUrl) {
       return;
     }
     const logger = this.logger.createLoggerWithTag("goDashboard");
