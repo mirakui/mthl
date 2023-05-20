@@ -66,8 +66,8 @@ bool IsNewTick() {
 }
 
 double DetectSignal(string indicatorName, int bufferIndex) {
-  double v0 = iCustom(NULL, 0, indicatorName, bufferIndex, 2);
-  double v1 = iCustom(NULL, 0, indicatorName, bufferIndex, 1);
+  double v0 = iCustom(NULL, 0, indicatorName, bufferIndex, 1);
+  double v1 = iCustom(NULL, 0, indicatorName, bufferIndex, 0);
   if (v0 == 0 && v1 != 0) {
     return v1;
   }
