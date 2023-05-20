@@ -21,10 +21,9 @@ export class Throttling<T> {
     }
 
     const elapsed = now - this.startTime;
-    // console.log("elapsed", elapsed, "interval", this.interval);
     if (elapsed < this.interval) {
       if (this.runCount >= this.max) {
-        return Promise.reject(new RateLimitExceededError(`Max ${this.runCount} calls / ${this.interval / 1000} sec`));
+        throw new RateLimitExceededError(`Max ${this.runCount} calls / ${this.interval / 1000} sec`);
       }
     } else {
       this.runCount = 0;
@@ -32,8 +31,12 @@ export class Throttling<T> {
     }
 
     this.runCount++;
-
-    return Promise.resolve(fn());
+    try {
+      return await fn();
+    } catch (e) {
+      this.runCount--;
+      throw e;
+    }
   }
 
   status(): string {
