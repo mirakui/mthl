@@ -1,5 +1,6 @@
 import * as puppeteer from 'puppeteer';
 import { Mthl } from './mthl';
+import { formatISO } from 'date-fns';
 
 const HIGHLOW_URL_BASE = 'https://highlow.com';
 const HIGHLOW_APP_URL_BASE = 'https://app.highlow.com';
@@ -247,6 +248,14 @@ export class HighLowController {
     this.logger.log("postScreenshot");
     const screenshotBuffer = await page.screenshot({ fullPage: true });
     await this.logger.uploadImage(screenshotBuffer);
+  }
+
+  async postDump() {
+    const page = await this.getPage();
+    this.logger.log("postDump");
+    const filename = `dump-${formatISO(new Date())}.html`;
+    const dump = await page.content();
+    await this.logger.uploadFile({ file: Buffer.from(dump), filename: filename, type: "html" });
   }
 
   async bringToFront() {

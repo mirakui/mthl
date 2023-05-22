@@ -89,6 +89,18 @@ export class SlackBot {
       }
     });
 
+    this.app.shortcut("dump", async ({ shortcut, ack, context, logger }) => {
+      this.logger.log("Received shortcut: dump");
+      ack();
+
+      try {
+        await Mthl.server.onData('{ "command": "Dump" }');
+      }
+      catch (error) {
+        this.logger.log(`[ERROR] ${error}`);
+      }
+    });
+
     await this.app.start();
     this.logger.log("Started");
   }

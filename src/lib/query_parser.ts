@@ -5,6 +5,7 @@ import { StatsCommandBuilder } from "./commands/stats_command";
 import { CheckBalanceCommandBuilder } from "./commands/check_balance_command";
 import { WarmupCommandBuilder } from "./commands/warmup_command";
 import { ScreenshotCommandBuilder } from "./commands/screenshot_command";
+import { DumpCommandBuilder } from "./commands/dump_command";
 
 export class QueryParserError extends Error { }
 
@@ -40,6 +41,8 @@ export class QueryParser {
         return new WarmupCommandBuilder(json);
       case "Screenshot":
         return new ScreenshotCommandBuilder(json);
+      case "Dump":
+        return new DumpCommandBuilder(json);
       default:
         throw new QueryParserError(`Command not supported: "${json.command}"`);
     }
