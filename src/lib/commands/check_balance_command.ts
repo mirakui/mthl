@@ -69,7 +69,7 @@ export class CheckBalanceCommand extends CommandBase<CheckBalanceCommandProps, C
       this.previousBalance = currentBalance;
 
       logger.log("Go back to dashboard");
-      this.controller.goDashboard();
+      await this.controller.goDashboard();
       logger.log("End");
       return {
         success: true,

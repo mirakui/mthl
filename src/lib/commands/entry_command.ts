@@ -69,7 +69,6 @@ export class EntryCommand extends CommandBase<EntryCommandProps, EntryCommandRes
         success: false,
         error: err.toString(),
       };
-      console.log("result", result, JSON.stringify(err));
       return result;
     }
   }
