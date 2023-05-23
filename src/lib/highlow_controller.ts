@@ -133,31 +133,52 @@ export class HighLowController {
     logger.log("Start");
     await this.goDashboard();
 
-    const selector = 'div[class*="OptionItem_container"]'
-    logger.log(`Wait for network idle`);
-    await page.waitForNetworkIdle();
-    const containers = await page.$$(selector);
-    logger.log(`containers: ${containers.length}`);
-    for (let container of containers) {
-      const ticker = await container.$eval('span[class*="OptionItem_ticker"]', elm => elm.textContent);
-      const duration = await container.$eval('span[class*="OptionItem_duration"]', elm => elm.textContent);
-      if (ticker == pairName && duration == "15分") {
-        logger.log(`Click: ticker=${ticker}, duration=${duration}`);
-        await container.click();
-        logger.log(`Wait for network idle`);
-        await page.waitForNetworkIdle();
-        const currentPairName = await page.$eval("div[class^='ChartInfo_optionAssetName']", elm => elm.textContent);
+    let found = false;
+    await this.waitForSelector('div[class*="OptionItem_container"]').then(async (selector) => {
+      const containers = await page.$$(selector);
+      logger.log(`containers: ${containers.length}`);
+      for (let container of containers) {
+        const _found = await this.selectPairProcessContainer(container, pairName);
+        if (!_found) {
+          found = true;
+          return;
+        }
+      }
+    });
+    if (!found) {
+      throw new HighLowControllerError(`Pair not found: ${pairName}`);
+    }
+  }
+
+  private async selectPairProcessContainer(container: puppeteer.ElementHandle<Element>, pairName: string): Promise<boolean> {
+    const page = await this.getPage();
+    const logger = this.logger.createLoggerWithTag("selectPairProcessContainer");
+
+    const ticker = await container.$eval('span[class*="OptionItem_ticker"]', elm => elm.textContent);
+    const duration = await container.$eval('span[class*="OptionItem_duration"]', elm => elm.textContent);
+    if (ticker == pairName && duration == "15分") {
+      logger.log(`Click: ticker=${ticker}, duration=${duration}`);
+      await container.click();
+      await this.waitForSelector("div[class^='ChartInfo_optionAssetName']").then(async (selector) => {
+        const currentPairName = await page.$eval(selector, elm => elm.textContent);
         if (currentPairName === pairName) {
           logger.log("End");
-          return;
+          return true;
         }
         else {
           throw new HighLowControllerError(`Failed to change pair: ${currentPairName} -> ${pairName}`);
         }
-      }
+      });
     }
+    return false;
+  }
 
-    throw new HighLowControllerError(`Pair not found: ${pairName}`);
+  async waitForSelector(selector: string): Promise<string> {
+    const page = await this.getPage();
+    const logger = this.logger.createLoggerWithTag("waitForSelector");
+    logger.log(selector);
+    await page.waitForSelector(selector);
+    return Promise.resolve(selector);
   }
 
   async enableOneClickTrading() {
