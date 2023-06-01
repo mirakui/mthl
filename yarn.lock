@@ -1297,6 +1297,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/readline-sync@npm:^1":
+  version: 1.4.4
+  resolution: "@types/readline-sync@npm:1.4.4"
+  checksum: 830f4f5c0d0e2aeb6b4d66865b0d5da74878d6e86d6ee9496569604372140269c4b9c3a07e89adcc5fcf276fad1a730a285bddba682b69e4f56fd9a20b57aff0
+  languageName: node
+  linkType: hard
+
 "@types/retry@npm:0.12.0":
   version: 0.12.0
   resolution: "@types/retry@npm:0.12.0"
@@ -2283,6 +2290,13 @@ __metadata:
     shebang-command: "npm:^2.0.0"
     which: "npm:^2.0.1"
   checksum: 37ec685f91f04d4719892f305fa6f632aae256df7f2f3f98d5c36f2197651ad7b77851aaa2d397d19a9555f0fb89fa18f9bb3ff4b440535cc0fb4fe0a72004b9
+  languageName: node
+  linkType: hard
+
+"crypto@npm:^1.0.1":
+  version: 1.0.1
+  resolution: "crypto@npm:1.0.1"
+  checksum: 3f9b57b7dc64a5ac808655980d39ed34d0b6678182773a8a4e84e7c56c24be0b408adc54adce7d9e760443d6bd30fa77ab65ce4fdd2214f7da559ed69b6d4e62
   languageName: node
   linkType: hard
 
@@ -4857,9 +4871,11 @@ __metadata:
     "@types/node": "npm:^18.15.13"
     "@types/node-schedule": "npm:^2.1.0"
     "@types/puppeteer": "npm:^7.0.4"
+    "@types/readline-sync": "npm:^1"
     "@typescript-eslint/eslint-plugin": "npm:^5.59.0"
     "@typescript-eslint/parser": "npm:^5.59.0"
     ajv: "npm:^8.12.0"
+    crypto: "npm:^1.0.1"
     date-fns: "npm:^2.30.0"
     dotenv: "npm:^16.0.3"
     eslint: "npm:^8.39.0"
@@ -4868,6 +4884,7 @@ __metadata:
     node-schedule: "npm:^2.1.1"
     prettier: "npm:^2.8.7"
     puppeteer: "npm:^19.10.1"
+    readline-sync: "npm:^1.4.10"
     ts-jest: "npm:^29.1.0"
     ts-node: "npm:^10.9.1"
     typescript: "npm:^5.0.4"
@@ -5501,6 +5518,13 @@ __metadata:
     string_decoder: "npm:^1.1.1"
     util-deprecate: "npm:^1.0.1"
   checksum: b1cbe0fea6b407fc75bfbe4f6c54d48899e638d54a8a1207b5040c60566dd5f65059b32c3edf0ac0ce621ea46929b3337e8a19410870eff98b8be5a3ba543b7a
+  languageName: node
+  linkType: hard
+
+"readline-sync@npm:^1.4.10":
+  version: 1.4.10
+  resolution: "readline-sync@npm:1.4.10"
+  checksum: 6b89f00cadc432fd5b9b4efd478485f7316c0202b1eff4ceff58ddb01464022405b3721d5db8493daed7bd448a87e418b8a833cd4eb03f7dd529a6e6540400dd
   languageName: node
   linkType: hard
 

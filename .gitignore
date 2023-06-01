@@ -17,3 +17,4 @@ config/config.cjs
 .pnp.*
 .env
 *.exe
+config/.secret.json
