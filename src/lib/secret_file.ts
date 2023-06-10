@@ -16,7 +16,7 @@ export class SecretFile {
   encryptEncoding: crypto.Encoding = "hex";
   rawEncoding: crypto.Encoding = "utf8";
 
-  path;
+  path: string;
 
   _secretToken?: string;
 
@@ -69,10 +69,6 @@ export class SecretFile {
       this._secretToken = crypto.randomBytes(32).toString('hex');
     }
     return this._secretToken;
-  }
-
-  get key() {
-    return
   }
 
   fileExists(): boolean {

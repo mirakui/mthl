@@ -60,8 +60,7 @@ export class Browser {
       defaultViewport: null,
       debuggingPort: this.config.port,
       args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
+        `--user-data-dir=tmp/chrome`,
       ],
     }
     this.logger.log(`Launching new browser: ${JSON.stringify(opts)}`);
