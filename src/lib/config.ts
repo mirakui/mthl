@@ -1,33 +1,43 @@
-import * as dotenv from 'dotenv';
-import fs from 'fs';
-import Ajv from 'ajv';
+export interface ConfigParams {
+  account: AccountConfigParams;
+  slack: SlackConfigParams;
+  server: ServerConfigParams;
+  browser: BrowserConfigParams
+  cron: CronConfigParams;
+  entry: EntryConfigParams;
+}
 
-export type ConfigParams = {
-  account: "production" | "demo";
-  slack: {
-    accessToken: string,
-    appToken: string,
-    channel: string,
-  },
-  server: {
-    pipeName: string,
-  },
-  browser: {
-    timeout: number,
-    host: string,
-    port: number,
-    launch: boolean,
-    headless: boolean,
-  },
-  cron: {
-    schedules: {
-      schedule: string,
-      query: object,
-    }[],
-  },
-  entry: {
-    rateLimitPerMinute: number,
-  }
+export interface AccountConfigParams {
+  environment: "production" | "demo";
+}
+
+export interface SlackConfigParams {
+  accessToken: string;
+  appToken: string;
+  channel: string;
+}
+
+export interface ServerConfigParams {
+  pipeName: string;
+}
+
+export interface CronConfigParams {
+  schedules: {
+    schedule: string;
+    query: object;
+  }[];
+}
+
+export interface EntryConfigParams {
+  rateLimitPerMinute: number;
+}
+
+export interface BrowserConfigParams {
+  timeout: number;
+  host: string;
+  port: number;
+  launch: boolean;
+  headless: boolean;
 }
 
 const ConfigParamsSchema = {

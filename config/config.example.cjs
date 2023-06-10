@@ -1,5 +1,7 @@
 module.exports = {
-  account: "production",
+  account: {
+    environment: "production",
+  },
   slack: {
     accessToken: "",
     appToken: "",
