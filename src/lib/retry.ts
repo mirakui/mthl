@@ -6,10 +6,10 @@ export interface RetryOptions {
   delay?: number;
 }
 
-export type RetryCallback<T> = () => T;
+export type RetryCallback<T> = () => Promise<T>;
 export type RetryCallbackMatcher<T> = (actual: T) => Boolean;
 
-const DEFAULT_RETRIES = 10;
+const DEFAULT_RETRIES = 20;
 const DEFAULT_DELAY = 1000;
 
 export class Retry {
@@ -25,12 +25,13 @@ export class Retry {
     }
   }
 
-  static async retryUntil<T>(callback: RetryCallback<T>, matcher: RetryCallbackMatcher<T>, opts?: RetryOptions) {
+  static async retryUntil<T>(callback: RetryCallback<T>, matcher: RetryCallbackMatcher<T>, opts?: RetryOptions): Promise<T> {
     const retries = opts?.retries || Retry.defaultRetries;
     const delay = opts?.delay || Retry.defaultDelay;
     let lastResult: T | undefined;
     for (let i = 0; i < retries; i++) {
       lastResult = await callback();
+      console.log(`Retry ${i}: ${JSON.stringify(lastResult)}`);
       if (matcher(lastResult)) {
         return lastResult;
       }

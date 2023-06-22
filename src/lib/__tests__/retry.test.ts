@@ -7,7 +7,7 @@ interface TestObject {
 
 test('Retry', async () => {
   let i = 0;
-  const callback: RetryCallback<TestObject> = () => {
+  const callback: RetryCallback<TestObject> = async () => {
     i++;
     if (i < 3) {
       return { status: "ERROR", retries: i - 1 };

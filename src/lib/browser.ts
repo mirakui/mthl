@@ -3,8 +3,16 @@ import { Mthl } from "./mthl";
 import { MultiLogger } from "./multi_logger";
 import formatISO from "date-fns/formatISO";
 import { BrowserConfigParams, ConfigParams } from "./config";
+import { Retry } from "./retry";
 
 export class BrowserError extends Error { }
+
+export interface BrowserActionResult<T> {
+  success: boolean;
+  selector?: string;
+  message?: string;
+  result?: T;
+}
 
 type BrowserProps = {
   browser: puppeteer.Browser;
@@ -108,20 +116,101 @@ export class Browser {
     }
   }
 
-  async goto(url: string) {
+  async goto(url: string): Promise<BrowserActionResult<void>> {
     const logger = this.logger.createLoggerWithTag("goto");
     logger.log(url);
-    if (this.page.url() !== url) {
-      logger.log(`page.goto: ${url}`);
-      await this.page.goto(url);
+    await this.page.goto(url);
+    return { success: true, result: undefined };
+  }
+
+  async click(selector: string): Promise<BrowserActionResult<void>> {
+    const logger = this.logger.createLoggerWithTag("click");
+    logger.log(`Trying to click ${selector}`);
+    try {
+      await this.page.waitForSelector(selector);
+      await this.page.$eval(selector, elm => (elm as HTMLElement).click());
+      logger.log(`clicked ${selector}`);
+
+      return { success: true, selector: selector };
+    }
+    catch (e) {
+      return { success: false, selector: selector, message: (e as Error).message };
+    }
+  }
+
+  async _click(selector: string): Promise<BrowserActionResult<void>> {
+    const logger = this.logger.createLoggerWithTag("click");
+    logger.log(`Trying to click ${selector}`);
+    try {
+      const elmResult = await Retry.retryUntil(async () => await this.$(selector), (result) => result.success);
+      if (!elmResult.success || !elmResult.result) {
+        return { success: true, selector: selector, message: "Element not found" };
+      }
+      logger.log(`click ${selector}`);
+      await elmResult.result.click();
+      logger.log(`clicked ${selector}`);
+      return { success: true, selector: selector };
+    }
+    catch (e) {
+      return { success: false, selector: selector, message: (e as Error).message };
+    }
+  }
+
+  async type(selector: string, text: string): Promise<BrowserActionResult<void>> {
+    const logger = this.logger.createLoggerWithTag("type");
+    try {
+      await this.page.waitForSelector(selector);
+      await this.page.type(selector, text);
+
+      return { success: true, selector: selector };
+    }
+    catch (e) {
+      return { success: false, selector: selector, message: (e as Error).message };
+    }
+  }
+
+  async getTextContent(selector: string): Promise<BrowserActionResult<string>> {
+    const logger = this.logger.createLoggerWithTag("getTextContent");
+    logger.log(selector);
+
+    try {
+      const textContent = await this.page.$eval(selector, elm => elm.textContent);
+      if (textContent === null) {
+        return { success: false, selector: selector, message: "Element not found" };
+      }
+      else {
+        return { success: true, result: textContent };
+      }
+    }
+    catch (e) {
+      return { success: false, selector: selector, message: (e as Error).message };
+    }
+  }
+
+  async $(selector: string): Promise<BrowserActionResult<puppeteer.ElementHandle<Element>>> {
+    const logger = this.logger.createLoggerWithTag("$");
+    logger.log(selector);
+
+    const element = await this.page.$(selector);
+    if (element === null) {
+      return { success: false, selector: selector, message: "Element not found" };
     }
     else {
-      logger.log("Already in the page");
+      return { success: true, result: element };
     }
-    if (this.page.url().match(/\/login/)) {
-      logger.log("Please login manually");
+  }
+
+  async $$(selector: string): Promise<BrowserActionResult<puppeteer.ElementHandle<Element>[]>> {
+    const logger = this.logger.createLoggerWithTag("$$");
+    logger.log(selector);
+
+    const element = await this.page.$$(selector);
+    if (element === null) {
+      return { success: false, selector: selector, message: "Element not found" };
     }
-    logger.log("End");
+    else {
+      return { success: true, result: element };
+    }
   }
 
   async waitForSelector(selector: string): Promise<string> {
@@ -129,6 +218,12 @@ export class Browser {
     logger.log(selector);
     await this.page.waitForSelector(selector);
     return Promise.resolve(selector);
+  }
+
+  async waitForNetworkIdle(): Promise<void> {
+    const logger = this.logger.createLoggerWithTag("waitForNetworkIdle");
+    logger.log("waitForNetworkIdle");
+    await this.page.waitForNetworkIdle();
   }
 
   async postScreenshot() {
