@@ -28,9 +28,9 @@ export class WarmupCommand extends CommandBase<WarmupCommandProps, WarmupCommand
     try {
       logger.log("Start");
       await this.controller.bringToFront();
-      await this.controller.goDashboard(true);
+      await this.controller.gotoDashboard();
       await this.controller.enableOneClickTrading();
-      await this.controller.selectPair("USD/JPY");
+      // await this.controller.selectPair("USD/JPY");
       await this.controller.postScreenshot();
       logger.log("End");
       return {

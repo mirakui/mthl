@@ -1,10 +1,8 @@
-import { Browser } from './browser';
 import { CommandProcessor } from './command_processor';
 import { Config, ConfigParams } from './config';
 import { Cron } from './cron';
 import { HighLowController } from './highlow_controller';
 import { MultiLogger } from './multi_logger';
-import { PageStateResolver } from './pages/page';
 import { Server } from './server';
 import { SlackBot } from './slack_bot';
 import { Statistics } from './statistics';
@@ -13,7 +11,6 @@ type ConstructorProps = {
   config: ConfigParams;
   logger: MultiLogger;
   server: Server;
-  browser: Browser;
   controller: HighLowController;
   processor: CommandProcessor;
   stats: Statistics;
@@ -25,7 +22,6 @@ export class Mthl {
   private static _config?: ConfigParams;
   private static _logger?: MultiLogger;
   private static _server?: Server;
-  private static _browser?: Browser;
   private static _controller?: HighLowController;
   private static _processor?: CommandProcessor;
   private static _stats?: Statistics;
@@ -57,19 +53,9 @@ export class Mthl {
     return Mthl._server;
   }
 
-  static get browser() {
-    if (Mthl._browser === undefined) {
-      Mthl._browser = new Browser(Mthl.config.browser);
-    }
-    return Mthl._browser;
-  }
-
   static get controller() {
     if (Mthl._controller === undefined) {
-      Mthl._controller = new HighLowController({
-        browser: Mthl.browser,
-        stateResolver: new PageStateResolver(Mthl.browser)
-      });
+      throw new Error("Controller is not initialized");
     }
     return Mthl._controller;
   }
@@ -105,8 +91,7 @@ export class Mthl {
 
   static async start() {
     Mthl.logger.log("Start!");
-    await Mthl.browser.open();
-    await Mthl.controller.goDashboard();
+    Mthl._controller = await HighLowController.init(Mthl.config.browser);
     Mthl.server.start();
     Mthl.slackBot.start();
     Mthl.cron.start();

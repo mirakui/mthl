@@ -4,7 +4,7 @@ import { Throttling } from "../throttling";
 
 export interface EntryCommandProps extends CommandPropsBase {
   order: "high" | "low";
-  timePeriod: "5m" | "15m";
+  timePeriod?: "5m" | "15m";
   pairName: "USDJPY" | "EURJPY" | "EURUSD";
   expectedPrice?: number;
   requestedAt?: Date;
@@ -25,6 +25,10 @@ export class EntryCommandBuilder extends CommandBuilderBase<EntryCommandProps> {
           },
           pairName: {
             type: "string",
+          },
+          timePeriod: {
+            type: "string",
+            enum: ["5m", "15m"],
           },
           expectedPrice: {
             type: "number",
@@ -78,10 +82,14 @@ export class EntryCommand extends CommandBase<EntryCommandProps, EntryCommandRes
     logger.log("Start");
     let result: EntryCommandResult;
 
+    await this.controller.loginIfNeeded();
+
     result = await this.controller.gotoDashboard();
     if (!result.success) { return result }
 
-    const assetOptionResult = await this.controller.getAssetOption(this.normalizePairName(this.props.pairName), this.props.timePeriod);
+    const durationText = this.props.timePeriod ?? "15分";
+    const pairName = this.normalizePairName(this.props.pairName);
+    const assetOptionResult = await this.controller.getAssetOption(pairName, durationText);
 
     if (assetOptionResult.success === false || assetOptionResult.result === undefined) {
       logger.log(`[Error] ${JSON.stringify(assetOptionResult)}`);

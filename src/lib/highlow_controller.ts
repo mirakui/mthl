@@ -1,8 +1,6 @@
 import * as puppeteer from 'puppeteer';
 import { Mthl } from './mthl';
 import { Browser, BrowserActionResult } from './browser';
-import { PageStateResolver } from './pages/page';
-import { TradingHistoryStateRequest } from './pages/trading_history';
 import { BrowserConfigParams } from './config';
 import { Credential, SecretFile } from './secret_file';
 import { MultiLogger } from './multi_logger';
@@ -53,20 +51,31 @@ export class HighLowController {
   }
 
   onBrowserResponse(response: puppeteer.HTTPResponse) {
+    const logger = this.logger.createLoggerWithTag("onBrowserResponse");
     if (response.request().resourceType() !== "xhr") {
       return;
     }
-    response.json().then(responseJson => {
-      const url = response.url();
-      if (url.match(/\/Buy/)) {
+    if (!response.url().match(/\/Buy|\/GetTraderBalance/)) {
+      return;
+    }
+    const url = response.url();
+    if (url.match(/\/Buy/)) {
+      logger.log(`Caught ${url}`);
+      response.json().then(responseJson => {
         const postData = response.request().postData();
-        this.logger.log(`/Buy postData: ${postData}`);
-        this.logger.log(`/Buy response: ${responseJson}`);
-      }
-      else if (url.match(/\/GetTraderBalance/)) {
-        this.logger.log(`/GetTraderBalance response: ${responseJson}`);
-      }
-    });
+        logger.log(`/Buy postData: ${postData}`);
+        logger.log(`/Buy response: ${JSON.stringify(responseJson)}`);
+      }).catch(err => {
+        logger.log(`json error on ${url}: ${err}`);
+      });
+    }
+    else if (url.match(/\/GetTraderBalance/)) {
+      response.json().then(responseJson => {
+        // logger.log(`/GetTraderBalance response: ${JSON.stringify(responseJson)}`);
+      }).catch(err => {
+        logger.log(`json error on ${url}: ${err}`);
+      });
+    }
   }
 
   async loginIfNeeded() {
@@ -77,12 +86,14 @@ export class HighLowController {
     await this.browser.goto(loginUrl);
     await this.browser.waitForNetworkIdle();
 
-    if (this.browser.page.url() === "/login") {
+    logger.log(`url: ${this.browser.page.url()}`);
+    if (this.browser.page.url() === loginUrl) {
       logger.log(`Trying to login as ${cred.username}`);
       await this.browser.type("input#username", cred.username);
       await this.browser.type("input#password", cred.password);
       await this.browser.click("div#pwa-login");
-      await this.browser.waitForNetworkIdle();
+
+      await Retry.retryUntil(async () => this.browser.page.url(), (url) => url !== loginUrl);
       logger.log("Logged in");
     }
     else {
@@ -91,11 +102,41 @@ export class HighLowController {
     logger.log("End");
   }
 
+  async getAssetGroups(): Promise<BrowserActionResult<AssetGroups>> {
+    const logger = this.logger.createLoggerWithTag("getAssetGroups");
+    logger.log("Start");
 
-  async parseAssetGroups(browser: Browser): Promise<BrowserActionResult<AssetGroups>> {
+    const clickResult = await this.browser.click("div#highlow");
+    logger.log(`clickResult: ${JSON.stringify(clickResult)}`);
+    if (!clickResult.success) {
+      return { success: false, selector: clickResult.selector, message: clickResult.message };
+    }
+
+    const assetGroupsResult = await Retry.retryUntil<BrowserActionResult<AssetGroups>>(async () => this.parseAssetGroups(), (assetGroupsResult) => {
+      logger.log(`assetGroupsResult: ${JSON.stringify(assetGroupsResult)}`);
+      const assetGroups = assetGroupsResult.result;
+      if (!assetGroupsResult.success || !assetGroups) {
+        return false;
+      }
+      if (!assetGroups["USD/JPY"] || assetGroups["USD/JPY"].length === 0) {
+        return false;
+      }
+      const assetOption = assetGroups["USD/JPY"][0];
+      console.log("assetOption", assetOption);
+      if (!assetOption?.durationText || !assetOption.durationText.match(/^15[m分]/)) {
+        return false;
+      }
+
+      return true;
+    });
+
+    return assetGroupsResult;
+  }
+
+  async parseAssetGroups(): Promise<BrowserActionResult<AssetGroups>> {
     const logger = this.logger.createLoggerWithTag("parseAssetGroups");
 
-    const assetCardsResult = await browser.$$("div[class^=AssetGroup_assetCard__]");
+    const assetCardsResult = await this.browser.$$("div[class^=AssetGroup_assetCard__]");
     const assetCards = assetCardsResult.result;
     if (!assetCardsResult.success || !assetCards) {
       return { success: false, selector: assetCardsResult.selector, message: assetCardsResult.message };
@@ -138,10 +179,10 @@ export class HighLowController {
   }
 
   async getAssetOption(symbol: string, durationText: string): Promise<BrowserActionResult<AssetOption>> {
-    const logger = this.logger.createLoggerWithTag("selectPair");
+    const logger = this.logger.createLoggerWithTag("getAssetOption");
     logger.log(`Start: ${symbol}, ${durationText}`);
 
-    const assetGroupsResult = await this.parseAssetGroups(this.browser);
+    const assetGroupsResult = await this.getAssetGroups();
     if (!assetGroupsResult.success) {
       return { success: false, selector: assetGroupsResult.selector, message: assetGroupsResult.message };
     }
@@ -153,6 +194,7 @@ export class HighLowController {
       return { success: false, message: `No asset group for ${symbol}` };
     }
 
+    logger.log(`finding ${durationText} from assetGroups: ${JSON.stringify(assetGroups)}`)
     const assetOption = assetGroup.find(assetOption => assetOption.durationText === durationText);
 
     if (!assetOption) {
@@ -242,7 +284,6 @@ export class HighLowController {
     const logger = this.logger.createLoggerWithTag("gotoDashboard");
     logger.log("Start");
 
-    await this.loginIfNeeded();
     const dashboardUrl = `${HIGHLOW_APP_URL_BASE}/trade`;
     if (this.browser.page.url() !== dashboardUrl) {
       const result = await this.browser.goto(dashboardUrl);
@@ -258,6 +299,7 @@ export class HighLowController {
     logger.log(`Start: ${JSON.stringify(assetOption)}`)
 
     const result = await this.browser.goto(`${HIGHLOW_APP_URL_BASE}/trade/${assetOption.id}`);
+    await this.browser.waitForSelector("#chart-container[class*=chart_loaded]:not([class*=chart_loadingOption])");
 
     logger.log("End");
     return result;
@@ -280,10 +322,13 @@ export class HighLowController {
   }
 
   private loadCredential(path: string): Credential {
+    const logger = this.logger.createLoggerWithTag("loadCredential");
+    logger.log(`Start: ${path}`);
     const secretFile = new SecretFile(path);
     if (!secretFile.fileExists()) {
       secretFile.askAndRenewFile();
     }
+    logger.log("End");
     return secretFile.readDecrypted();
   }
 }
