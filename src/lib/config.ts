@@ -30,6 +30,8 @@ export interface CronConfigParams {
 
 export interface EntryConfigParams {
   rateLimitPerMinute: number;
+  durationText: string;
+  tradeAmount: number;
 }
 
 export interface BrowserConfigParams {

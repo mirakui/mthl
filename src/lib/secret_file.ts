@@ -2,7 +2,7 @@ import * as crypto from 'crypto'
 import * as readlineSync from 'readline-sync';
 import fs from 'fs';
 
-export interface SecretFileType {
+export interface Credential {
   secret: string;
   username: string;
   password: string;
@@ -31,7 +31,7 @@ export class SecretFile {
       hideEchoBack: true,
     });
 
-    const data: SecretFileType = {
+    const data: Credential = {
       secret: this.secretToken,
       username: username,
       password: this.encrypt(password),
@@ -40,7 +40,7 @@ export class SecretFile {
     this.saveFile(data);
   }
 
-  readDecrypted(): SecretFileType {
+  readDecrypted(): Credential {
     const data = this.readFile();
     data.password = this.decrypt(data.password);
     return data;
@@ -75,11 +75,11 @@ export class SecretFile {
     return fs.existsSync(this.path);
   }
 
-  readFile(): SecretFileType {
-    return JSON.parse(fs.readFileSync(this.path, 'utf8')) as SecretFileType;
+  readFile(): Credential {
+    return JSON.parse(fs.readFileSync(this.path, 'utf8')) as Credential;
   }
 
-  saveFile(data: SecretFileType): void {
+  saveFile(data: Credential): void {
     fs.writeFileSync(this.path, JSON.stringify(data));
   }
 }

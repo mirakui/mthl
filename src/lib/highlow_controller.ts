@@ -1,195 +1,289 @@
 import * as puppeteer from 'puppeteer';
 import { Mthl } from './mthl';
-import { Browser } from './browser';
+import { Browser, BrowserActionResult } from './browser';
 import { PageStateResolver } from './pages/page';
 import { TradingHistoryStateRequest } from './pages/trading_history';
+import { BrowserConfigParams } from './config';
+import { Credential, SecretFile } from './secret_file';
+import { MultiLogger } from './multi_logger';
+import { Retry } from './retry';
 
 const HIGHLOW_URL_BASE = 'https://highlow.com';
 const HIGHLOW_APP_URL_BASE = 'https://app.highlow.com';
+const USER_AGENT = "Mozilla/5.0 (Linux; Android 9; Pixel 3 XL) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Mobile Safari/537.36";
+const VIEWPORT = { width: 390, height: 844 };
+const CREDENTIAL_SECRET_FILE_PATH = "config/.secret.json";
+
+interface AssetOption {
+  symbol: string | null;
+  durationText: string | null;
+  id: number | null;
+}
+
+type AssetGroups = { [symbol: string]: AssetOption[] };
 
 export class HighLowControllerError extends Error { }
 
 type HighLowControllerProps = {
   browser: Browser;
-  stateResolver: PageStateResolver;
 }
 
 export class HighLowController {
   browser: Browser;
-  stateResolver: PageStateResolver;
+  logger: MultiLogger;
 
   constructor(props: HighLowControllerProps) {
     this.browser = props.browser;
-    this.stateResolver = props.stateResolver;
+    this.logger = Mthl.logger.createLoggerWithTag("HighLowController");
   }
 
-  // static async init() {
-  //   const browser = await Browser.open();
-  //   const stateResolver = new PageStateResolver(browser);
-  //   return new HighLowController({ browser, stateResolver });
-  // }
+  static async init(browserConfigParams: BrowserConfigParams) {
+    const browser = new Browser(browserConfigParams);
+    await browser.open();
+    await browser.page.setUserAgent(USER_AGENT);
+    await browser.page.setViewport(VIEWPORT);
+    await browser.page.setRequestInterception(true);
 
-  get logger() {
-    return Mthl.logger;
+    const controller = new HighLowController({ browser });
+
+    browser.page.on("request", request => request.continue());
+    browser.page.on("response", controller.onBrowserResponse.bind(controller));
+
+    return controller;
   }
 
-  async goTradingHistory() {
-
-    const url = `${HIGHLOW_URL_BASE}/my-account/trading/trade-action-history`;
-    await this.browser.goto(url);
-  }
-
-  get dashboardUrl() {
-    if (Mthl.config.account.environment === "demo") {
-      return `${HIGHLOW_APP_URL_BASE}/quick-demo`;
-    } else {
-      return `${HIGHLOW_APP_URL_BASE}/`;
-    }
-  }
-
-  async goDashboard(force?: boolean) {
-    if (!force && this.browser.page.url() === this.dashboardUrl) {
+  onBrowserResponse(response: puppeteer.HTTPResponse) {
+    if (response.request().resourceType() !== "xhr") {
       return;
     }
-    const logger = this.logger.createLoggerWithTag("goDashboard");
-    logger.log("Start");
-    await this.browser.goto(this.dashboardUrl);
+    response.json().then(responseJson => {
+      const url = response.url();
+      if (url.match(/\/Buy/)) {
+        const postData = response.request().postData();
+        this.logger.log(`/Buy postData: ${postData}`);
+        this.logger.log(`/Buy response: ${responseJson}`);
+      }
+      else if (url.match(/\/GetTraderBalance/)) {
+        this.logger.log(`/GetTraderBalance response: ${responseJson}`);
+      }
+    });
+  }
 
-    const selector = "div#ChangingStrike0";
-    logger.log(`Wait for selector: ${selector}`);
-    await this.browser.waitForSelector(selector);
-    logger.log(`Click: ${selector}`);
-    await this.browser.page.$eval(selector, elm => elm.click());
+  async loginIfNeeded() {
+    const logger = this.logger.createLoggerWithTag("loginIfNeeded");
+    const loginUrl = `${HIGHLOW_APP_URL_BASE}/login`;
+    const cred = this.loadCredential(CREDENTIAL_SECRET_FILE_PATH);
+
+    await this.browser.goto(loginUrl);
+    await this.browser.waitForNetworkIdle();
+
+    if (this.browser.page.url() === "/login") {
+      logger.log(`Trying to login as ${cred.username}`);
+      await this.browser.type("input#username", cred.username);
+      await this.browser.type("input#password", cred.password);
+      await this.browser.click("div#pwa-login");
+      await this.browser.waitForNetworkIdle();
+      logger.log("Logged in");
+    }
+    else {
+      logger.log("Already logged in");
+    }
     logger.log("End");
   }
 
-  async selectPair(pairName: string) {
-    const logger = this.logger.createLoggerWithTag("selectPair");
 
-    logger.log("Start");
-    await this.goDashboard();
+  async parseAssetGroups(browser: Browser): Promise<BrowserActionResult<AssetGroups>> {
+    const logger = this.logger.createLoggerWithTag("parseAssetGroups");
 
-    let found = false;
-    await this.browser.waitForSelector('div[class*="OptionItem_container"]').then(async (selector) => {
-      const containers = await this.browser.page.$$(selector);
-      logger.log(`containers: ${containers.length}`);
-      for (let container of containers) {
-        const _found = await this.selectPairProcessContainer(container, pairName);
-        if (!_found) {
-          found = true;
-          return;
-        }
-      }
-    });
-    if (!found) {
-      throw new HighLowControllerError(`Pair not found: ${pairName}`);
+    const assetCardsResult = await browser.$$("div[class^=AssetGroup_assetCard__]");
+    const assetCards = assetCardsResult.result;
+    if (!assetCardsResult.success || !assetCards) {
+      return { success: false, selector: assetCardsResult.selector, message: assetCardsResult.message };
     }
-  }
 
-  private async selectPairProcessContainer(container: puppeteer.ElementHandle<Element>, pairName: string): Promise<boolean> {
-    const logger = this.logger.createLoggerWithTag("selectPairProcessContainer");
+    logger.log(`assetCards: ${assetCards.length}`);
 
-    const ticker = await container.$eval('span[class*="OptionItem_ticker"]', elm => elm.textContent);
-    const duration = await container.$eval('span[class*="OptionItem_duration"]', elm => elm.textContent);
-    if (ticker == pairName && duration == "15分") {
-      logger.log(`Click: ticker=${ticker}, duration=${duration}`);
-      await container.click();
-      await this.browser.waitForSelector("div[class^='ChartInfo_optionAssetName']").then(async (selector) => {
-        const currentPairName = await this.browser.page.$eval(selector, elm => elm.textContent);
-        if (currentPairName === pairName) {
-          logger.log("End");
-          return true;
-        }
-        else {
-          throw new HighLowControllerError(`Failed to change pair: ${currentPairName} -> ${pairName}`);
+    const promises = assetCards.map(async assetCard => {
+      const symbol = await assetCard.$eval("div[class^=assetInfo_symbol__]", elm => elm.textContent);
+
+      if (!symbol) { return; }
+
+      const optionCards = await assetCard.$$("div[class^=Carousel_rotateContent__]");
+
+      const promises = optionCards.map(async optionCard => {
+        try {
+          const durationText = await optionCard.$eval("div[class^=optionCard_duration__]", elm => elm.textContent);
+          const id = await optionCard.$eval("div[class*=optionCard_optionCardWrapper]", elm => elm.id);
+          const assetOption = { symbol, durationText, id: parseInt(id) };
+          return assetOption;
+        } catch (e) {
+          return Promise.reject(e);
         }
       });
-    }
-    return false;
-  }
 
-  async enableOneClickTrading() {
-    const logger = this.logger.createLoggerWithTag("enableOneClickTrading");
-    logger.log("Start");
-    await this.goDashboard();
-    const selector = "div[class^='TradePanel_container'] div[class*='Switch_switch']";
-    logger.log(`Wait for selector: ${selector}`);
-    await this.browser.waitForSelector(selector);
-    logger.log(`Enable: ${selector}`);
-    await this.browser.page.$eval(selector, (elm) => {
-      if (elm.className.includes("false")) {
-        elm.click();
-      }
+      const assetOptions = await Promise.all(promises);
+
+      return { symbol, group: assetOptions.filter(assetOption => assetOption !== undefined) };
     });
+
+    const assetGroups: AssetGroups = {};
+    (await Promise.all(promises)).forEach((arg) => {
+      if (!arg) { return; }
+      const { symbol, group } = arg;
+      if (!symbol || !group) { return; }
+      assetGroups[symbol as string] = group as AssetOption[];
+    });
+
+    return { success: true, result: assetGroups };
   }
 
-  async entry(order: "high" | "low") {
+  async getAssetOption(symbol: string, durationText: string): Promise<BrowserActionResult<AssetOption>> {
+    const logger = this.logger.createLoggerWithTag("selectPair");
+    logger.log(`Start: ${symbol}, ${durationText}`);
+
+    const assetGroupsResult = await this.parseAssetGroups(this.browser);
+    if (!assetGroupsResult.success) {
+      return { success: false, selector: assetGroupsResult.selector, message: assetGroupsResult.message };
+    }
+
+    const assetGroups = assetGroupsResult?.result ?? {};
+    const assetGroup = assetGroups[symbol];
+
+    if (!assetGroup) {
+      return { success: false, message: `No asset group for ${symbol}` };
+    }
+
+    const assetOption = assetGroup.find(assetOption => assetOption.durationText === durationText);
+
+    if (!assetOption) {
+      return { success: false, message: `No asset option for ${symbol} ${durationText}` };
+    }
+
+    return { success: true, result: assetOption };
+  }
+
+  async setTradeAmount(price: number): Promise<BrowserActionResult<void>> {
+    const logger = this.logger.createLoggerWithTag("setPrice");
+    logger.log(`Start: ${price}`);
+
+    const priceBeforeResult = await Retry.retryUntil(async () => await this.browser.getTextContent("#tradeAmountTextField"), (result) => result.success);
+
+    if (!priceBeforeResult.success) {
+      return { success: false, selector: priceBeforeResult.selector, message: priceBeforeResult.message };
+    }
+
+    const priceBefore = priceBeforeResult.result;
+    await this.browser.click("#tradeAmountTextField");
+
+    await Retry.retryUntil(async () => await this.browser.$("#numpadKeyConfirm"), (result) => result.success);
+
+    const priceStr = Math.floor(price).toString();
+
+    for (let i = 0; i < priceStr.length; i++) {
+      const numpadKey = `#numpadKey${priceStr[i]}`;
+      await this.browser.click(numpadKey);
+      await Retry.delay(10);
+    }
+
+    await this.browser.click("#numpadKeyConfirm");
+    await Retry.delay(10);
+    const priceAfterResult = await this.browser.getTextContent("#tradeAmountTextField");
+    const priceAfter = priceAfterResult.result;
+
+    if (!priceAfterResult.success) {
+      return { success: false, selector: priceAfterResult.selector, message: priceAfterResult.message };
+    }
+
+    logger.log(`Price: ${priceBefore} -> ${priceAfter}`);
+    logger.log("End");
+
+    return { success: true };
+  }
+
+  async entry(order: "high" | "low"): Promise<BrowserActionResult<void>> {
     const logger = this.logger.createLoggerWithTag("entry");
     logger.log("Start");
-    await this.goDashboard();
 
-    const selector = `div[class^='TradePanel_container'] div[class*='TradePanel_${order}']`;
-    logger.log(`Wait for selector: ${selector}`);
-    await this.browser.waitForSelector(selector);
-    logger.log(`Click: ${selector}`);
-    await this.browser.page.$eval(selector, (elm) => {
-      (elm as HTMLDivElement).click();
-    });
-
-    this.browser.postScreenshot();
+    const orderButton = order === "high" ? "#placeHighTrade" : "#placeLowTrade";
+    await Retry.retryUntil(async () => await this.browser.$(orderButton), (result) => result.success);
+    const clickResult = await this.browser.click(orderButton);
 
     logger.log("End");
+
+    return clickResult;
   }
 
-  async fetchMarketClosed(): Promise<boolean> {
-    const page = await this.browser.page;
-    await this.browser.goto(`${HIGHLOW_APP_URL_BASE}/`);
-    const countdownDiv = await page.$("div[class^='MarketClosed_countdown']");
-    return countdownDiv !== null;
+  async enableOneClickTrading(): Promise<BrowserActionResult<void>> {
+    const logger = this.logger.createLoggerWithTag("enableOneClickTrading");
+    logger.log("Start");
+
+    await Retry.retryUntil(async () => await this.browser.$("#oneClickTradeToggle"), (result) => result.success);
+
+    const oneClickTradeToggleEnabled0 = (await this.browser.$("#oneClickTradeToggle[class*=oneClickTradeToggle_enabled]"))?.result;
+    logger.log(`oneClickTradeToggleEnabled: ${!!oneClickTradeToggleEnabled0}`);
+
+    if (!oneClickTradeToggleEnabled0) {
+      await this.browser.click("#oneClickTradeToggle");
+      const oneClickTradeToggleEnabled1 = (await this.browser.$("#oneClickTradeToggle[class*=oneClickTradeToggle_enabled]"))?.result;
+      logger.log(`-> oneClickTradeToggleEnabled: ${!!oneClickTradeToggleEnabled1}`);
+
+      if (oneClickTradeToggleEnabled1) {
+        return { success: true, message: "Enabled one click trading" };
+      }
+      else {
+        return { success: false, message: "Failed to enable one click trading" };
+      }
+    }
+
+    return { success: true, message: "Already enabled one click trading" };
+  }
+
+  async gotoDashboard(): Promise<BrowserActionResult<void>> {
+    const logger = this.logger.createLoggerWithTag("gotoDashboard");
+    logger.log("Start");
+
+    await this.loginIfNeeded();
+    const dashboardUrl = `${HIGHLOW_APP_URL_BASE}/trade`;
+    if (this.browser.page.url() !== dashboardUrl) {
+      const result = await this.browser.goto(dashboardUrl);
+      return result;
+    }
+    else {
+      return { success: true, message: "Already on dashboard" };
+    }
+  }
+
+  async gotoTradePage(assetOption: AssetOption): Promise<BrowserActionResult<void>> {
+    const logger = this.logger.createLoggerWithTag("gotoTradePage");
+    logger.log(`Start: ${JSON.stringify(assetOption)}`)
+
+    const result = await this.browser.goto(`${HIGHLOW_APP_URL_BASE}/trade/${assetOption.id}`);
+
+    logger.log("End");
+    return result;
+  }
+
+  async postScreenshot(): Promise<void> {
+    return await this.browser.postScreenshot();
+  }
+
+  async postDump(): Promise<void> {
+    return await this.browser.postDump();
+  }
+
+  async bringToFront(): Promise<void> {
+    return await this.browser.bringToFront();
   }
 
   async fetchBalance(): Promise<number> {
-    const page = await this.browser.page;
-    const logger = this.logger.createLoggerWithTag("fetchBalance");
-    logger.log("Start");
-    await this.browser.goto(`${HIGHLOW_URL_BASE}/my-account/trading/trade-action-history`);
-    const selector = "span.emphasized.eng.accountBalancePolled";
-    logger.log(`Wait for selector: ${selector}`);
-    await page.waitForSelector(selector);
-    logger.log(`Wait for function`);
-    await page.waitForFunction(async selector => {
-      const elm = document.querySelector(selector);
-      return elm !== null && elm.textContent?.match(/[0-9]/)
-    }, {}, selector);
-    const balance = await page.$eval(selector, elm => elm.textContent);
-    this.logger.log(`balance: ${balance}`);
-    logger.log("End");
-    return this.parseBalance(balance || '0');
+    throw new Error("Method not implemented.");
   }
 
-  async postScreenshot() {
-    await this.browser.postScreenshot();
-  }
-
-  async bringToFront() {
-    await this.browser.bringToFront();
-  }
-
-  async postDump() {
-    await this.browser.postDump();
-  }
-
-  // async fetchBalance2(): Promise<number> {
-  //   const request = new TradingHistoryStateRequest();
-  //   const page = await this.stateResolver.changeState(request);
-  //   return await page.getBalance();
-  // }
-
-  // async changeState(request: TradingHistoryStateRequest): Promise<TradingHistoryState> {
-  //   return state;
-  // }
-
-  private parseBalance(balance: string): number {
-    return parseFloat(balance.replace(/[^0-9\.]/g, ''));
+  private loadCredential(path: string): Credential {
+    const secretFile = new SecretFile(path);
+    if (!secretFile.fileExists()) {
+      secretFile.askAndRenewFile();
+    }
+    return secretFile.readDecrypted();
   }
 }

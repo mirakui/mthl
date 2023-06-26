@@ -35,5 +35,7 @@ module.exports = {
   },
   entry: {
     rateLimitPerMinute: 2,
+    durationText: "15m",
+    tradeAmount: 1000,
   }
 }

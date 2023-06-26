@@ -76,24 +76,44 @@ export class EntryCommand extends CommandBase<EntryCommandProps, EntryCommandRes
   private _run = async (): Promise<EntryCommandResult> => {
     const logger = this.logger.createLoggerWithTag("EntryCommand");
     logger.log("Start");
-    await this.controller.bringToFront();
-    await this.controller.goDashboard(true);
-    await this.controller.enableOneClickTrading();
-    await this.controller.selectPair(this.normalizePairName(this.props.pairName));
+    let result: EntryCommandResult;
+
+    result = await this.controller.gotoDashboard();
+    if (!result.success) { return result }
+
+    const assetOptionResult = await this.controller.getAssetOption(this.normalizePairName(this.props.pairName), this.props.timePeriod);
+
+    if (assetOptionResult.success === false || assetOptionResult.result === undefined) {
+      logger.log(`[Error] ${JSON.stringify(assetOptionResult)}`);
+      return {
+        success: false,
+        error: assetOptionResult.message,
+      };
+    }
+
+    result = await this.controller.gotoTradePage(assetOptionResult.result);
+    if (!result.success) { return result }
+
+    result = await this.controller.enableOneClickTrading();
+    if (!result.success) { return result }
+
+    result = await this.controller.setTradeAmount(Mthl.config.entry.tradeAmount);
+    if (!result.success) { return result }
+
     switch (this.props.order) {
       case "high":
-        await this.controller.entry("high");
+        result = await this.controller.entry("high");
         break;
       case "low":
-        await this.controller.entry("low");
+        result = await this.controller.entry("low");
         break;
       default:
         throw new Error(`Invalid order: ${this.props.order}`);
     }
+    this.controller.browser.postScreenshot();
+
     logger.log("End");
-    return {
-      success: true,
-    };
+    return result;
   }
 
   normalizePairName(pairName: string): string {
