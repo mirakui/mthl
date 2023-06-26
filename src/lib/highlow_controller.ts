@@ -29,6 +29,7 @@ type HighLowControllerProps = {
 export class HighLowController {
   browser: Browser;
   logger: MultiLogger;
+  balance?: number;
 
   constructor(props: HighLowControllerProps) {
     this.browser = props.browser;
@@ -55,23 +56,26 @@ export class HighLowController {
     if (response.request().resourceType() !== "xhr") {
       return;
     }
+    if (response.status() !== 200) {
+      return;
+    }
     if (!response.url().match(/\/Buy|\/GetTraderBalance/)) {
       return;
     }
     const url = response.url();
     if (url.match(/\/Buy/)) {
-      logger.log(`Caught ${url}`);
-      response.json().then(responseJson => {
-        const postData = response.request().postData();
-        logger.log(`/Buy postData: ${postData}`);
-        logger.log(`/Buy response: ${JSON.stringify(responseJson)}`);
-      }).catch(err => {
-        logger.log(`json error on ${url}: ${err}`);
-      });
+      this.notifyBuyResponse(response);
     }
     else if (url.match(/\/GetTraderBalance/)) {
       response.json().then(responseJson => {
+        /*
+        {"data":{"balanceInformation":{"BonusInfo":null,"Cashback":null,"balance":25250,"bonusBalance":0},"retentionInformation":{"errors":[],"status":"success","campaignName":"STA","data":[{"Key":"MaxPayout","Value":"0"},{"Key":"STACount","Value":"0"},{"Key":"CampaignReason","Value":"Cashback"},{"Key":"PendingCashback","Value":"0"},{"Key":"PendingCashbackMonthly","Value":"0"},{"Key":"ReleasedJackpotCashback","Value":"0"},{"Key":"ReleasedJackpotID","Value":""}]}},"status":"success","timestamp":"2023-06-26T04:04:22Z"}
+        */
         // logger.log(`/GetTraderBalance response: ${JSON.stringify(responseJson)}`);
+        const balance = responseJson?.data?.balanceInformation.balance;
+        if (balance) {
+          this.updateBalance(balance);
+        }
       }).catch(err => {
         logger.log(`json error on ${url}: ${err}`);
       });
@@ -102,7 +106,7 @@ export class HighLowController {
     logger.log("End");
   }
 
-  async getAssetGroups(): Promise<BrowserActionResult<AssetGroups>> {
+  private async getAssetGroups(): Promise<BrowserActionResult<AssetGroups>> {
     const logger = this.logger.createLoggerWithTag("getAssetGroups");
     logger.log("Start");
 
@@ -133,7 +137,7 @@ export class HighLowController {
     return assetGroupsResult;
   }
 
-  async parseAssetGroups(): Promise<BrowserActionResult<AssetGroups>> {
+  private async parseAssetGroups(): Promise<BrowserActionResult<AssetGroups>> {
     const logger = this.logger.createLoggerWithTag("parseAssetGroups");
 
     const assetCardsResult = await this.browser.$$("div[class^=AssetGroup_assetCard__]");
@@ -305,6 +309,23 @@ export class HighLowController {
     return result;
   }
 
+  async warmup(): Promise<BrowserActionResult<AssetOption>> {
+    const logger = this.logger.createLoggerWithTag("warmup");
+    logger.log("Start");
+
+    await this.loginIfNeeded();
+    await this.gotoDashboard();
+    const result = await this.getAssetOption("USD/JPY", "15分");
+
+    if (result.success) {
+      logger.postMessage(":rocket: *Warm up succeeded*");
+    }
+    else {
+      logger.postMessage(`:warning: *Warm up failed*\n\`\`\`\n${JSON.stringify(result)}\n\`\`\``);
+    }
+    return result;
+  }
+
   async postScreenshot(): Promise<void> {
     return await this.browser.postScreenshot();
   }
@@ -321,6 +342,46 @@ export class HighLowController {
     throw new Error("Method not implemented.");
   }
 
+  updateBalance(balance: number): void {
+    const logger = this.logger.createLoggerWithTag("updateBalance");
+    const balanceBefore = this.balance;
+
+    if (balanceBefore === balance) {
+      return;
+    }
+    this.balance = balance;
+
+    const balanceStr = this.formatPrice(balance);
+    if (balanceBefore === undefined) {
+      logger.postMessage(`:moneybag: *Current Balance *\n${balanceStr}\n`);
+      return;
+    }
+
+    logger.log(`Balance updated: ${balanceBefore} -> ${balance}`);
+
+    const diff = balance - balanceBefore;
+    const diffStr = this.formatPrice(diff, true);
+    let emoji = diff >= 0 ? ":moneybag:" : ":money_with_wings:";
+
+    logger.postMessage(`${emoji} *Balance updated*\n${balanceStr} (${diffStr})\n`);
+  }
+
+  notifyBuyResponse(response: puppeteer.HTTPResponse) {
+    const logger = this.logger.createLoggerWithTag("notifyBuyResponse");
+    const url = response.url();
+    logger.log(`Start: ${url}`);
+
+    response.json().then(responseJson => {
+      const postData = response.request().postData();
+      const msg = `Responded BUY request\n\`\`\`\n${postData}\n\`\`\`\nResponse\n\`\`\`\n${JSON.stringify(responseJson)}\`\`\``;
+      logger.postMessage(msg);
+    }).catch(err => {
+      logger.log(`json error on ${url}: ${err}`);
+    });
+
+    logger.log("End");
+  }
+
   private loadCredential(path: string): Credential {
     const logger = this.logger.createLoggerWithTag("loadCredential");
     logger.log(`Start: ${path}`);
@@ -330,5 +391,11 @@ export class HighLowController {
     }
     logger.log("End");
     return secretFile.readDecrypted();
+  }
+
+  private formatPrice(num: number, plus?: boolean): string {
+    const sign = num >= 0 ? (plus ? "+" : "") : "-";
+    const abs = Math.abs(num).toLocaleString("en-US");
+    return `${sign}¥${abs}`;
   }
 }

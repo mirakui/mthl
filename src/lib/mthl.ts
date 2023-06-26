@@ -91,7 +91,14 @@ export class Mthl {
 
   static async start() {
     Mthl.logger.log("Start!");
-    Mthl._controller = await HighLowController.init(Mthl.config.browser);
+
+    const controller = await HighLowController.init(Mthl.config.browser);
+    const controllerWarmupResult = await controller.warmup();
+    if (!controllerWarmupResult.success) {
+      throw new Error(`Controller warmup failed: ${JSON.stringify(controllerWarmupResult)}`);
+    }
+    Mthl._controller = controller;
+
     Mthl.server.start();
     Mthl.slackBot.start();
     Mthl.cron.start();
