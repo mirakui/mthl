@@ -47,6 +47,9 @@ export class StatsCommand extends CommandBase<StatsCommandProps, StatsCommandRes
       const time = formatISO(new Date());
       const message = `:bar_chart: *Statistics at ${time}* (clear=${this.props.clear})\n` +
         "```\n" +
+        `Login: ${Mthl.controller.loggedIn}\n` +
+        `Balance: ${Mthl.controller.balance}\n` +
+        "-------------------\n" +
         `${Mthl.stats.toString()}\n` +
         "```";
       logger.postMessage(message);

@@ -1,286 +1,229 @@
 import * as puppeteer from 'puppeteer';
 import { Mthl } from './mthl';
-import { formatISO } from 'date-fns';
+import { Browser, BrowserActionResult } from './browser';
+import { BrowserConfigParams } from './config';
+import { MultiLogger } from './multi_logger';
+import { AssetOption, DashboardPage } from './pages/dashboard_page';
+import { LoginPage } from './pages/login_page';
+import { TradePage } from './pages/trade_page';
+import { PageConstructorProps } from './pages/page';
 
-const HIGHLOW_URL_BASE = 'https://highlow.com';
-const HIGHLOW_APP_URL_BASE = 'https://app.highlow.com';
+const USER_AGENT = "Mozilla/5.0 (Linux; Android 9; Pixel 3 XL) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Mobile Safari/537.36";
+const VIEWPORT = { width: 390, height: 844 };
 
 export class HighLowControllerError extends Error { }
 
+type HighLowControllerProps = {
+  browser: Browser;
+}
+
 export class HighLowController {
-  _browser?: puppeteer.Browser;
-  _page?: puppeteer.Page;
+  browser: Browser;
+  logger: MultiLogger;
+  loggedIn: boolean = false;
+  balance?: number;
+  loginPage: LoginPage;
+  dashboardPage: DashboardPage;
+  tradePage: TradePage;
 
-  constructor() {
+  constructor(props: HighLowControllerProps) {
+    this.browser = props.browser;
+    this.logger = Mthl.logger.createLoggerWithTag("HighLowController");
+
+    const pageProps: PageConstructorProps = { browser: this.browser, logger: this.logger };
+    this.loginPage = new LoginPage(pageProps);
+    this.dashboardPage = new DashboardPage(pageProps);
+    this.tradePage = new TradePage(pageProps);
   }
 
-  get logger() {
-    return Mthl.logger;
+  static async init(browserConfigParams: BrowserConfigParams) {
+    const browser = new Browser(browserConfigParams);
+    await browser.open();
+    await browser.page.setUserAgent(USER_AGENT);
+    await browser.page.setViewport(VIEWPORT);
+    await browser.page.setRequestInterception(true);
+
+    const controller = new HighLowController({ browser });
+
+    browser.page.on("request", request => request.continue());
+    browser.page.on("response", controller.onBrowserResponse.bind(controller));
+
+    return controller;
   }
 
-  async getBrowser() {
-    if (this._browser === undefined) {
-      this._browser = await this.launchBrowser();
-    }
-    return this._browser;
-  }
-
-  async launchBrowser(): Promise<puppeteer.Browser> {
-    const conf = Mthl.config.browser;
-    if (conf.launch) {
-      let opts: puppeteer.PuppeteerLaunchOptions = {
-        headless: conf.headless,
-        defaultViewport: null,
-        debuggingPort: conf.port,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-        ],
-      }
-      this.logger.log(`Launching new browser: ${JSON.stringify(opts)}`);
-      return await puppeteer.launch(opts);
-    }
-    else {
-      const wsEndpoint = await this.getWsEndpoint();
-      this.logger.log("Connecting to existing browser: " + wsEndpoint);
-      return await puppeteer.connect({
-        browserWSEndpoint: wsEndpoint,
-        defaultViewport: null
-      });
-    }
-
-
-  }
-
-  async getWsEndpoint(): Promise<string> {
-    const logger = this.logger.createLoggerWithTag("getWsEndpoint")
-    const url = `http://${Mthl.config.browser.host}:${Mthl.config.browser.port}/json/version`;
-    logger.log(`Fetching ${url}`);
-    const response = await fetch(url);
-
-    if (response.status !== 200) {
-      throw new HighLowControllerError(`Failed to fetch: ${response.status} ${response.statusText}`);
-    }
-    else if (response.body === null) {
-      throw new HighLowControllerError(`Failed to fetch: body is null`);
-    }
-
-    const body = await response.text();
-    logger.log(`body=${body}`);
-
-    const json = JSON.parse(body);
-    const wsEndpoint = json.webSocketDebuggerUrl;
-
-    if (wsEndpoint === undefined || wsEndpoint.match(/^ws:/) === null) {
-      throw new HighLowControllerError(`Unexpected webSocketDebuggerUrl: ${wsEndpoint}`);
-    }
-    return wsEndpoint;
-  }
-
-  async getPage(): Promise<puppeteer.Page> {
-    if (this._page === undefined) {
-      const browser = await this.getBrowser();
-      if (browser.pages.length > 0) {
-        this._page = browser.pages[browser.pages.length - 1] as puppeteer.Page;
-      }
-      else {
-        this.logger.log("newPage");
-        this._page = await browser.newPage();
-      }
-      this._page.setDefaultTimeout(Mthl.config.browser.timeout);
-    }
-    return this._page;
-  }
-
-  async close() {
-    await this._browser?.close();
-  }
-
-  async goTradingHistory() {
-    const url = `${HIGHLOW_URL_BASE}/my-account/trading/trade-action-history`;
-    await this.goto(url);
-  }
-
-  get dashboardUrl() {
-    if (Mthl.config.account === "demo") {
-      return `${HIGHLOW_APP_URL_BASE}/quick-demo`;
-    } else {
-      return `${HIGHLOW_APP_URL_BASE}/`;
-    }
-  }
-
-  async goDashboard(force?: boolean) {
-    const page = await this.getPage();
-    if (!force && page.url() === this.dashboardUrl) {
+  onBrowserResponse(response: puppeteer.HTTPResponse) {
+    const logger = this.logger.createLoggerWithTag("onBrowserResponse");
+    if (response.request().resourceType() !== "xhr") {
       return;
     }
-    const logger = this.logger.createLoggerWithTag("goDashboard");
-    logger.log("Start");
-    await this.goto(this.dashboardUrl);
-
-    const selector = "div#ChangingStrike0";
-    logger.log(`Wait for selector: ${selector}`);
-    await page.waitForSelector(selector);
-    logger.log(`Click: ${selector}`);
-    await page.$eval(selector, elm => elm.click());
-    logger.log("End");
-  }
-
-  async selectPair(pairName: string) {
-    const page = await this.getPage();
-    const logger = this.logger.createLoggerWithTag("selectPair");
-
-    logger.log("Start");
-    await this.goDashboard();
-
-    let found = false;
-    await this.waitForSelector('div[class*="OptionItem_container"]').then(async (selector) => {
-      const containers = await page.$$(selector);
-      logger.log(`containers: ${containers.length}`);
-      for (let container of containers) {
-        const _found = await this.selectPairProcessContainer(container, pairName);
-        if (!_found) {
-          found = true;
-          return;
-        }
-      }
-    });
-    if (!found) {
-      throw new HighLowControllerError(`Pair not found: ${pairName}`);
+    if (response.status() !== 200) {
+      return;
+    }
+    const url = response.url();
+    if (url.match(/\/Buy/)) {
+      this.receiveBuyResponse(response);
+    }
+    else if (url.match(/\/GetTraderBalance/)) {
+      this.receiveGetTraderBalanceResponse(response);
+    }
+    else if (url.match(/\/GetTraderParams/)) {
+      this.receiveGetTraderParamsResponse(response);
     }
   }
 
-  private async selectPairProcessContainer(container: puppeteer.ElementHandle<Element>, pairName: string): Promise<boolean> {
-    const page = await this.getPage();
-    const logger = this.logger.createLoggerWithTag("selectPairProcessContainer");
-
-    const ticker = await container.$eval('span[class*="OptionItem_ticker"]', elm => elm.textContent);
-    const duration = await container.$eval('span[class*="OptionItem_duration"]', elm => elm.textContent);
-    if (ticker == pairName && duration == "15分") {
-      logger.log(`Click: ticker=${ticker}, duration=${duration}`);
-      await container.click();
-      await this.waitForSelector("div[class^='ChartInfo_optionAssetName']").then(async (selector) => {
-        const currentPairName = await page.$eval(selector, elm => elm.textContent);
-        if (currentPairName === pairName) {
-          logger.log("End");
-          return true;
-        }
-        else {
-          throw new HighLowControllerError(`Failed to change pair: ${currentPairName} -> ${pairName}`);
-        }
-      });
+  async loginIfNeeded(): Promise<void> {
+    const logger = this.logger.createLoggerWithTag("loginIfNeeded");
+    logger.log("Start");
+    if (this.loggedIn) {
+      logger.log("Already logged in");
+      return;
     }
-    return false;
+    else {
+      return await this.loginPage.loginIfNeeded();
+    }
   }
 
-  async waitForSelector(selector: string): Promise<string> {
-    const page = await this.getPage();
-    const logger = this.logger.createLoggerWithTag("waitForSelector");
-    logger.log(selector);
-    await page.waitForSelector(selector);
-    return Promise.resolve(selector);
-  }
-
-  async enableOneClickTrading() {
-    const page = await this.getPage();
-    const logger = this.logger.createLoggerWithTag("enableOneClickTrading");
+  async gotoDashboard(): Promise<DashboardPage> {
+    const logger = this.logger.createLoggerWithTag("gotoDashboard");
     logger.log("Start");
-    await this.goDashboard();
-    const selector = "div[class^='TradePanel_container'] div[class*='Switch_switch']";
-    logger.log(`Wait for selector: ${selector}`);
-    await page.waitForSelector(selector);
-    logger.log(`Enable: ${selector}`);
-    await page.$eval(selector, (elm) => {
-      if (elm.className.includes("false")) {
-        elm.click();
-      }
-    });
-  }
 
-  async entry(order: "high" | "low") {
-    const page = await this.getPage();
-    const logger = this.logger.createLoggerWithTag("entry");
-
-    logger.log("Start");
-    await this.goDashboard();
-
-    const selector = `div[class^='TradePanel_container'] div[class*='TradePanel_${order}']`;
-    logger.log(`Wait for selector: ${selector}`);
-    await page.waitForSelector(selector);
-    logger.log(`Click: ${selector}`);
-    await page.$eval(selector, (elm) => {
-      (elm as HTMLDivElement).click();
-    });
-
-    this.postScreenshot();
+    const result = await this.dashboardPage.goto();
 
     logger.log("End");
+    if (result.success) {
+      return this.dashboardPage;
+    }
+    else {
+      throw new HighLowControllerError(`Failed to gotoDashboard: ${JSON.stringify(result)}`);
+    }
   }
 
-  async fetchMarketClosed(): Promise<boolean> {
-    const page = await this.getPage();
-    await this.goto(`${HIGHLOW_APP_URL_BASE}/`);
-    const countdownDiv = await page.$("div[class^='MarketClosed_countdown']");
-    return countdownDiv !== null;
+  async gotoTradePage(assetOption: AssetOption): Promise<TradePage> {
+    const logger = this.logger.createLoggerWithTag("gotoTradePage");
+    logger.log(`Start: ${JSON.stringify(assetOption)}`)
+
+    const result = await this.tradePage.goto(assetOption);
+    await this.browser.waitForSelector("#chart-container[class*=chart_loaded]:not([class*=chart_loadingOption])");
+
+    logger.log("End");
+    if (result.success) {
+      return this.tradePage;
+    }
+    else {
+      throw new HighLowControllerError(`Failed to gotoTradePage: ${JSON.stringify(result)}`);
+    }
+  }
+
+  async warmup(): Promise<BrowserActionResult<AssetOption>> {
+    const logger = this.logger.createLoggerWithTag("warmup");
+    logger.log("Start");
+
+    await this.loginIfNeeded();
+    const dashboardPage = await this.gotoDashboard();
+    const result = await dashboardPage.getAssetOption("USD/JPY", "15分");
+
+    if (result.success) {
+      logger.postMessage(":rocket: *Warm up succeeded*");
+    }
+    else {
+      logger.postMessage(`:warning: *Warm up failed*\n\`\`\`\n${JSON.stringify(result)}\n\`\`\``);
+    }
+    return result;
+  }
+
+  async postScreenshot(): Promise<void> {
+    return await this.browser.postScreenshot();
+  }
+
+  async postDump(): Promise<void> {
+    return await this.browser.postDump();
+  }
+
+  async bringToFront(): Promise<void> {
+    return await this.browser.bringToFront();
   }
 
   async fetchBalance(): Promise<number> {
-    const page = await this.getPage();
-    const logger = this.logger.createLoggerWithTag("fetchBalance");
-    logger.log("Start");
-    await this.goto(`${HIGHLOW_URL_BASE}/my-account/trading/trade-action-history`);
-    const selector = "span.emphasized.eng.accountBalancePolled";
-    logger.log(`Wait for selector: ${selector}`);
-    await page.waitForSelector(selector);
-    logger.log(`Wait for function`);
-    await page.waitForFunction(async selector => {
-      const elm = document.querySelector(selector);
-      return elm !== null && elm.textContent?.match(/[0-9]/)
-    }, {}, selector);
-    const balance = await page.$eval(selector, elm => elm.textContent);
-    this.logger.log(`balance: ${balance}`);
-    logger.log("End");
-    return this.parseBalance(balance || '0');
+    throw new Error("Method not implemented.");
   }
 
-  private parseBalance(balance: string): number {
-    return parseFloat(balance.replace(/[^0-9\.]/g, ''));
+  receiveBuyResponse(response: puppeteer.HTTPResponse) {
+    const logger = this.logger.createLoggerWithTag("notifyBuyResponse");
+    const url = response.url();
+    logger.log(`Start: ${url}`);
+
+    response.json().then(responseJson => {
+      const postData = response.request().postData();
+      const msg = `Responded BUY request\n\`\`\`\n${postData}\n\`\`\`\nResponse\n\`\`\`\n${JSON.stringify(responseJson)}\`\`\``;
+      logger.postMessage(msg);
+      logger.log("End");
+    }).catch(err => {
+      logger.log(`json error on ${url}: ${err}`);
+    });
   }
 
-  async goto(url: string) {
-    const page = await this.getPage();
-    const logger = this.logger.createLoggerWithTag("goto");
-    logger.log(url);
-    if (page.url() !== url) {
-      logger.log(`page.goto: ${url}`);
-      await page.goto(url);
+  // {"data":{"balanceInformation":{"BonusInfo":null,"Cashback":null,"balance":25250,"bonusBalance":0},"retentionInformation":{"errors":[],"status":"success","campaignName":"STA","data":[{"Key":"MaxPayout","Value":"0"},{"Key":"STACount","Value":"0"},{"Key":"CampaignReason","Value":"Cashback"},{"Key":"PendingCashback","Value":"0"},{"Key":"PendingCashbackMonthly","Value":"0"},{"Key":"ReleasedJackpotCashback","Value":"0"},{"Key":"ReleasedJackpotID","Value":""}]}},"status":"success","timestamp":"2023-06-26T04:04:22Z"}
+  receiveGetTraderBalanceResponse(response: puppeteer.HTTPResponse) {
+    const logger = this.logger.createLoggerWithTag("receiveGetTraderBalanceResponse");
+    const url = response.url();
+
+    response.json().then(responseJson => {
+      const balance = responseJson?.data?.balanceInformation.balance;
+      if (balance) {
+        this.updateBalance(balance);
+      }
+    }).catch(err => {
+      logger.log(`json error on ${url}: ${err}`);
+    });
+  }
+
+  // {"data":{"AccountType":0,"CurrencyCode":"JPY","CurrencyID":392,"CustomVariables":[],"Email":"q@d.cc","FirstName":"q","IsSuspended":false,"LanguageID":1041,"LastName":"d","LotSize":"10000","MaxDeposit":9999999,"MaxInvestment":200000,"MaxLotsInvestment":15,"MaxWithdraw":9999999,"MinDeposit":1000,"MinInvestment":1000,"MinLotsInvestment":1,"MinWithdraw":1,"OperatorID":1,"PurchaseInvestmentDefaultValue":1000,"PurchaseInvestmentDefaultValueLots":100,"PurchaseSliderInterval":100,"PurchaseSliderIntervalLots":10,"PurchaseSliderMaxValue":50000,"PurchaseSliderMaxValueLots":1000,"PurchaseSliderMinValue":1000,"PurchaseSliderMinValueLots":0,"PurchaseSuggestedAmounts":"5000, 10000, 50000","PurchaseSuggestedAmountsLots":""},"status":"success","timestamp":"2023-06-27T10:06:18Z"}
+  receiveGetTraderParamsResponse(response: puppeteer.HTTPResponse) {
+    const logger = this.logger.createLoggerWithTag("receiveGetTraderParamsResponse");
+    const url = response.url();
+    logger.log(`Start: ${url}`);
+
+    response.json().then(responseJson => {
+      const customVariables = responseJson?.data?.CustomVariables;
+      logger.log(`responseJson: ${JSON.stringify(responseJson)}`);
+      const loggedIn = !!(customVariables ?? customVariables.length > 0);
+      if (loggedIn !== this.loggedIn) {
+        logger.postMessage(`:key: *Login status updated* \`${this.loggedIn}\` -> \`${loggedIn}\``)
+        this.loggedIn = loggedIn;
+      }
+      logger.log("End");
+    }).catch(err => {
+      logger.log(`json error on ${url}: ${err}`);
+    });
+  }
+
+  private updateBalance(balance: number): void {
+    const logger = this.logger.createLoggerWithTag("updateBalance");
+    const balanceBefore = this.balance;
+
+    if (balanceBefore === balance) {
+      return;
     }
-    else {
-      logger.log("Already in the page");
+    this.balance = balance;
+
+    const balanceStr = this.formatPrice(balance);
+    if (balanceBefore === undefined) {
+      logger.postMessage(`:moneybag: *Current Balance *\n${balanceStr}\n`);
+      return;
     }
-    if (page.url().match(/\/login/)) {
-      logger.log("Please login manually");
-    }
-    logger.log("End");
+
+    logger.log(`Balance updated: ${balanceBefore} -> ${balance}`);
+
+    const diff = balance - balanceBefore;
+    const diffStr = this.formatPrice(diff, true);
+    let emoji = diff >= 0 ? ":moneybag:" : ":money_with_wings:";
+
+    logger.postMessage(`${emoji} *Balance updated*\n${balanceStr} (${diffStr})\n`);
   }
 
-  async postScreenshot() {
-    const page = await this.getPage();
-    this.logger.log("postScreenshot");
-    const screenshotBuffer = await page.screenshot({ fullPage: true });
-    await this.logger.uploadImage(screenshotBuffer);
-  }
-
-  async postDump() {
-    const page = await this.getPage();
-    this.logger.log("postDump");
-    const filename = `dump-${formatISO(new Date())}.html`;
-    const dump = await page.content();
-    await this.logger.uploadFile({ file: Buffer.from(dump), filename: filename, type: "html" });
-  }
-
-  async bringToFront() {
-    const page = await this.getPage();
-    await page.bringToFront();
+  private formatPrice(num: number, plus?: boolean): string {
+    const sign = num >= 0 ? (plus ? "+" : "") : "-";
+    const abs = Math.abs(num).toLocaleString("en-US");
+    return `${sign}¥${abs}`;
   }
 }

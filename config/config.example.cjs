@@ -1,5 +1,7 @@
 module.exports = {
-  account: "production",
+  account: {
+    environment: "production",
+  },
   slack: {
     accessToken: "",
     appToken: "",
@@ -18,10 +20,6 @@ module.exports = {
   cron: {
     schedules: [
       {
-        schedule: "0 10 * * * 1-5",
-        query: { command: "CheckBalance" },
-      },
-      {
         schedule: "0 30 6 * * 1-5",
         query: { command: "Stats", clear: true },
       },
@@ -33,5 +31,7 @@ module.exports = {
   },
   entry: {
     rateLimitPerMinute: 2,
+    durationText: "15m",
+    tradeAmount: 1000,
   }
 }

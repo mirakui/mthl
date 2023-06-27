@@ -40,18 +40,6 @@ export class SlackBot {
       }
     });
 
-    this.app.shortcut("checkbalance", async ({ shortcut, ack, context, logger }) => {
-      this.logger.log("Received shortcut: checkbalance");
-      ack();
-
-      try {
-        Mthl.server.onData('{ "command": "CheckBalance", "force": true }');
-      }
-      catch (error) {
-        this.logger.log(`[ERROR] ${error}`);
-      }
-    });
-
     this.app.shortcut("warmup", async ({ shortcut, ack, context, logger }) => {
       this.logger.log("Received shortcut: warmup");
       ack();

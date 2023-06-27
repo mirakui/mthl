@@ -19,86 +19,86 @@ type ConstructorProps = {
 }
 
 export class Mthl {
-  private static _singleton: Mthl;
-  private _config: ConfigParams;
-  private _logger: MultiLogger;
-  private _server: Server;
-  private _controller: HighLowController;
-  private _processor: CommandProcessor;
-  private _stats: Statistics;
-  private _slackBot: SlackBot;
-  private _cron: Cron;
-
-  constructor(props: ConstructorProps) {
-    this._config = props.config;
-    this._logger = props.logger;
-    this._server = props.server;
-    this._controller = props.controller;
-    this._processor = props.processor;
-    this._stats = props.stats;
-    this._slackBot = props.slackBot;
-    this._cron = props.cron
-  }
+  private static _config?: ConfigParams;
+  private static _logger?: MultiLogger;
+  private static _server?: Server;
+  private static _controller?: HighLowController;
+  private static _processor?: CommandProcessor;
+  private static _stats?: Statistics;
+  private static _slackBot?: SlackBot;
+  private static _cron?: Cron;
 
   static get config() {
-    return Mthl._singleton._config;
+    if (Mthl._config === undefined) {
+      Mthl._config = Config.load();
+    }
+    return Mthl._config;
   }
 
   static get logger() {
-    return Mthl._singleton._logger;
+    if (Mthl._logger === undefined) {
+      Mthl._logger = new MultiLogger({
+        slack: Mthl.config.slack
+      });
+    }
+    return Mthl._logger;
   }
 
   static get server() {
-    return Mthl._singleton._server;
+    if (Mthl._server === undefined) {
+      Mthl._server = new Server({
+        pipeName: Mthl.config.server.pipeName
+      })
+    }
+    return Mthl._server;
   }
 
   static get controller() {
-    return Mthl._singleton._controller;
+    if (Mthl._controller === undefined) {
+      throw new Error("Controller is not initialized");
+    }
+    return Mthl._controller;
   }
 
   static get processor() {
-    return Mthl._singleton._processor;
+    if (Mthl._processor === undefined) {
+      Mthl._processor = new CommandProcessor();
+    }
+    return Mthl._processor;
   }
 
   static get stats() {
-    return Mthl._singleton._stats;
+    if (Mthl._stats === undefined) {
+      Mthl._stats = new Statistics();
+    }
+    return Mthl._stats;
   }
 
   static get slackBot() {
-    return Mthl._singleton._slackBot;
+    if (Mthl._slackBot === undefined) {
+      const config = Mthl.config.slack;
+      Mthl._slackBot = new SlackBot({ botToken: config.accessToken, appToken: config.appToken });
+    }
+    return Mthl._slackBot;
   }
 
   static get cron() {
-    return Mthl._singleton._cron;
-  }
-
-  static setup() {
-    const config = Config.load();
-
-    const logger = new MultiLogger({
-      slack: config.slack
-    });
-
-    const server = new Server({
-      pipeName: config.server.pipeName
-    })
-
-    const controller = new HighLowController();
-
-    const processor = new CommandProcessor();
-
-    const stats = new Statistics();
-
-    const slackBot = new SlackBot({ botToken: config.slack.accessToken, appToken: config.slack.appToken });
-
-    const cron = new Cron(config.cron);
-
-    Mthl._singleton = new Mthl({ config, logger, server, controller, processor, stats, slackBot, cron });
+    if (Mthl._cron === undefined) {
+      Mthl._cron = new Cron(Mthl.config.cron);
+    }
+    return Mthl._cron;
   }
 
   static async start() {
     Mthl.logger.log("Start!");
-    await Mthl.controller.goDashboard();
+
+    const controller = await HighLowController.init(Mthl.config.browser);
+    const controllerWarmupResult = await controller.warmup();
+    if (!controllerWarmupResult.success) {
+      throw new Error(`Controller warmup failed: ${JSON.stringify(controllerWarmupResult)}`);
+    }
+    Mthl._controller = controller;
+
     Mthl.server.start();
     Mthl.slackBot.start();
     Mthl.cron.start();

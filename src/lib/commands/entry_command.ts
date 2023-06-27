@@ -4,7 +4,7 @@ import { Throttling } from "../throttling";
 
 export interface EntryCommandProps extends CommandPropsBase {
   order: "high" | "low";
-  timePeriod: "5m" | "15m";
+  timePeriod?: "5m" | "15m";
   pairName: "USDJPY" | "EURJPY" | "EURUSD";
   expectedPrice?: number;
   requestedAt?: Date;
@@ -25,6 +25,10 @@ export class EntryCommandBuilder extends CommandBuilderBase<EntryCommandProps> {
           },
           pairName: {
             type: "string",
+          },
+          timePeriod: {
+            type: "string",
+            enum: ["5m", "15m"],
           },
           expectedPrice: {
             type: "number",
@@ -76,24 +80,45 @@ export class EntryCommand extends CommandBase<EntryCommandProps, EntryCommandRes
   private _run = async (): Promise<EntryCommandResult> => {
     const logger = this.logger.createLoggerWithTag("EntryCommand");
     logger.log("Start");
-    await this.controller.bringToFront();
-    await this.controller.goDashboard(true);
-    await this.controller.enableOneClickTrading();
-    await this.controller.selectPair(this.normalizePairName(this.props.pairName));
+    let result: EntryCommandResult;
+
+    await this.controller.loginIfNeeded();
+
+    const dashboardPage = await this.controller.gotoDashboard();
+
+    const durationText = this.props.timePeriod ?? "15分";
+    const pairName = this.normalizePairName(this.props.pairName);
+    const assetOptionResult = await dashboardPage.getAssetOption(pairName, durationText);
+
+    if (assetOptionResult.success === false || assetOptionResult.result === undefined) {
+      logger.log(`[Error] ${JSON.stringify(assetOptionResult)}`);
+      return {
+        success: false,
+        error: assetOptionResult.message,
+      };
+    }
+
+    const tradePage = await this.controller.gotoTradePage(assetOptionResult.result);
+    result = await tradePage.enableOneClickTrading();
+    if (!result.success) { return result }
+
+    result = await tradePage.setTradeAmount(Mthl.config.entry.tradeAmount);
+    if (!result.success) { return result }
+
     switch (this.props.order) {
       case "high":
-        await this.controller.entry("high");
+        result = await tradePage.entry("high");
         break;
       case "low":
-        await this.controller.entry("low");
+        result = await tradePage.entry("low");
         break;
       default:
         throw new Error(`Invalid order: ${this.props.order}`);
     }
+    this.controller.browser.postScreenshot();
+
     logger.log("End");
-    return {
-      success: true,
-    };
+    return result;
   }
 
   normalizePairName(pairName: string): string {
