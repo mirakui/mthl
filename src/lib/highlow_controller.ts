@@ -3,13 +3,11 @@ import { Mthl } from './mthl';
 import { Browser, BrowserActionResult } from './browser';
 import { BrowserConfigParams } from './config';
 import { MultiLogger } from './multi_logger';
-import { Retry } from './retry';
 import { AssetOption, DashboardPage } from './pages/dashboard_page';
 import { LoginPage } from './pages/login_page';
 import { TradePage } from './pages/trade_page';
 import { PageConstructorProps } from './pages/page';
 
-const HIGHLOW_APP_URL_BASE = 'https://app.highlow.com';
 const USER_AGENT = "Mozilla/5.0 (Linux; Android 9; Pixel 3 XL) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Mobile Safari/537.36";
 const VIEWPORT = { width: 390, height: 844 };
 
@@ -168,14 +166,12 @@ export class HighLowController {
   receiveGetTraderBalanceResponse(response: puppeteer.HTTPResponse) {
     const logger = this.logger.createLoggerWithTag("receiveGetTraderBalanceResponse");
     const url = response.url();
-    logger.log(`Start: ${url}`);
 
     response.json().then(responseJson => {
       const balance = responseJson?.data?.balanceInformation.balance;
       if (balance) {
         this.updateBalance(balance);
       }
-      logger.log("End");
     }).catch(err => {
       logger.log(`json error on ${url}: ${err}`);
     });
@@ -183,7 +179,7 @@ export class HighLowController {
 
   // {"data":{"AccountType":0,"CurrencyCode":"JPY","CurrencyID":392,"CustomVariables":[],"Email":"q@d.cc","FirstName":"q","IsSuspended":false,"LanguageID":1041,"LastName":"d","LotSize":"10000","MaxDeposit":9999999,"MaxInvestment":200000,"MaxLotsInvestment":15,"MaxWithdraw":9999999,"MinDeposit":1000,"MinInvestment":1000,"MinLotsInvestment":1,"MinWithdraw":1,"OperatorID":1,"PurchaseInvestmentDefaultValue":1000,"PurchaseInvestmentDefaultValueLots":100,"PurchaseSliderInterval":100,"PurchaseSliderIntervalLots":10,"PurchaseSliderMaxValue":50000,"PurchaseSliderMaxValueLots":1000,"PurchaseSliderMinValue":1000,"PurchaseSliderMinValueLots":0,"PurchaseSuggestedAmounts":"5000, 10000, 50000","PurchaseSuggestedAmountsLots":""},"status":"success","timestamp":"2023-06-27T10:06:18Z"}
   receiveGetTraderParamsResponse(response: puppeteer.HTTPResponse) {
-    const logger = this.logger.createLoggerWithTag("updateTraderParams");
+    const logger = this.logger.createLoggerWithTag("receiveGetTraderParamsResponse");
     const url = response.url();
     logger.log(`Start: ${url}`);
 
@@ -192,7 +188,7 @@ export class HighLowController {
       logger.log(`responseJson: ${JSON.stringify(responseJson)}`);
       const loggedIn = !!(customVariables ?? customVariables.length > 0);
       if (loggedIn !== this.loggedIn) {
-        logger.postMessage(`:key: *Updated login status* \`${this.loggedIn}\` -> \`${loggedIn}\``)
+        logger.postMessage(`:key: *Login status updated* \`${this.loggedIn}\` -> \`${loggedIn}\``)
         this.loggedIn = loggedIn;
       }
       logger.log("End");
