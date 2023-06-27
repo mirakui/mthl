@@ -21,42 +21,60 @@ export class TradePage extends Page {
     return result;
   }
 
-  async setTradeAmount(price: number): Promise<BrowserActionResult<void>> {
+  async setTradeAmount(amount: number): Promise<BrowserActionResult<void>> {
     const logger = this.logger.createLoggerWithTag("setPrice");
-    logger.log(`Start: ${price}`);
+    logger.log(`Start: ${amount}`);
 
-    const priceBeforeResult = await Retry.retryUntil(async () => await this.browser.getTextContent("#tradeAmountTextField"), (result) => result.success);
+    const amountBeforeResult = await Retry.retryUntil(async () => await this.browser.getTextContent("#tradeAmountTextField"), (result) => result.success);
 
-    if (!priceBeforeResult.success) {
-      return { success: false, selector: priceBeforeResult.selector, message: priceBeforeResult.message };
+    if (!amountBeforeResult.success || !amountBeforeResult.result) {
+      return { success: false, selector: amountBeforeResult.selector, message: amountBeforeResult.message };
     }
 
-    const priceBefore = priceBeforeResult.result;
+    const amountBeforeStr = amountBeforeResult.result;
+    const amountBefore = parseInt(amountBeforeStr.replace(/[^0-9]/g, ""));
+
+    logger.log(`amountBefore: ${amountBeforeStr} (${amountBefore})`);
+
+    if (amountBefore === amount) {
+      logger.log("End");
+      return { success: true };
+    }
+
     await this.browser.click("#tradeAmountTextField");
 
     await Retry.retryUntil(async () => await this.browser.$("#numpadKeyConfirm"), (result) => result.success);
 
-    const priceStr = Math.floor(price).toString();
+    const amountStr = Math.floor(amount).toString();
 
-    for (let i = 0; i < priceStr.length; i++) {
-      const numpadKey = `#numpadKey${priceStr[i]}`;
+    for (let i = 0; i < amountStr.length; i++) {
+      const numpadKey = `#numpadKey${amountStr[i]}`;
       await this.browser.click(numpadKey);
       await Retry.delay(10);
     }
 
     await this.browser.click("#numpadKeyConfirm");
     await Retry.delay(10);
-    const priceAfterResult = await this.browser.getTextContent("#tradeAmountTextField");
-    const priceAfter = priceAfterResult.result;
+    const amountAfterResult = await this.browser.getTextContent("#tradeAmountTextField");
 
-    if (!priceAfterResult.success) {
-      return { success: false, selector: priceAfterResult.selector, message: priceAfterResult.message };
+    if (!amountAfterResult.success || !amountAfterResult.result) {
+      return { success: false, selector: amountAfterResult.selector, message: amountAfterResult.message };
     }
+    const amountAfterStr = amountAfterResult.result;
+    const amountAfter = this.parseAmount(amountAfterStr);
 
-    logger.log(`Price: ${priceBefore} -> ${priceAfter}`);
-    logger.log("End");
+    if (amountBefore === amountAfter) {
+      logger.log(`Amount not updated: ${amountBeforeStr} -> ${amountAfterStr}`);
+      logger.log("End");
 
-    return { success: true };
+      return { success: false, message: `Amount not updated: ${amountBeforeStr} -> ${amountAfterStr}` };
+    }
+    else {
+      logger.log(`Amount updated: ${amountBeforeStr} -> ${amountAfterStr}`);
+      logger.log("End");
+
+      return { success: true };
+    }
   }
 
   async entry(order: "high" | "low"): Promise<BrowserActionResult<void>> {
@@ -95,5 +113,10 @@ export class TradePage extends Page {
     }
 
     return { success: true, message: "Already enabled one click trading" };
+  }
+
+  // "¥10,000" -> "10000
+  private parseAmount(amountStr: string): number {
+    return parseInt(amountStr.replace(/[^0-9]/g, ""));
   }
 }
