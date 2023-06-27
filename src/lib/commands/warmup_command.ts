@@ -27,11 +27,7 @@ export class WarmupCommand extends CommandBase<WarmupCommandProps, WarmupCommand
     const logger = this.logger.createLoggerWithTag("WarmupCommand");
     try {
       logger.log("Start");
-      await this.controller.bringToFront();
-      await this.controller.gotoDashboard();
-      await this.controller.enableOneClickTrading();
-      // await this.controller.selectPair("USD/JPY");
-      await this.controller.postScreenshot();
+      await this.controller.warmup();
       logger.log("End");
       return {
         success: true,

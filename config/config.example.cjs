@@ -20,10 +20,6 @@ module.exports = {
   cron: {
     schedules: [
       {
-        schedule: "0 10 * * * 1-5",
-        query: { command: "CheckBalance" },
-      },
-      {
         schedule: "0 30 6 * * 1-5",
         query: { command: "Stats", clear: true },
       },

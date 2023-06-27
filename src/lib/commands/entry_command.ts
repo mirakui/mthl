@@ -84,12 +84,11 @@ export class EntryCommand extends CommandBase<EntryCommandProps, EntryCommandRes
 
     await this.controller.loginIfNeeded();
 
-    result = await this.controller.gotoDashboard();
-    if (!result.success) { return result }
+    const dashboardPage = await this.controller.gotoDashboard();
 
     const durationText = this.props.timePeriod ?? "15分";
     const pairName = this.normalizePairName(this.props.pairName);
-    const assetOptionResult = await this.controller.getAssetOption(pairName, durationText);
+    const assetOptionResult = await dashboardPage.getAssetOption(pairName, durationText);
 
     if (assetOptionResult.success === false || assetOptionResult.result === undefined) {
       logger.log(`[Error] ${JSON.stringify(assetOptionResult)}`);
@@ -99,21 +98,19 @@ export class EntryCommand extends CommandBase<EntryCommandProps, EntryCommandRes
       };
     }
 
-    result = await this.controller.gotoTradePage(assetOptionResult.result);
+    const tradePage = await this.controller.gotoTradePage(assetOptionResult.result);
+    result = await tradePage.enableOneClickTrading();
     if (!result.success) { return result }
 
-    result = await this.controller.enableOneClickTrading();
-    if (!result.success) { return result }
-
-    result = await this.controller.setTradeAmount(Mthl.config.entry.tradeAmount);
+    result = await tradePage.setTradeAmount(Mthl.config.entry.tradeAmount);
     if (!result.success) { return result }
 
     switch (this.props.order) {
       case "high":
-        result = await this.controller.entry("high");
+        result = await tradePage.entry("high");
         break;
       case "low":
-        result = await this.controller.entry("low");
+        result = await tradePage.entry("low");
         break;
       default:
         throw new Error(`Invalid order: ${this.props.order}`);
