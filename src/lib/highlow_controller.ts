@@ -63,27 +63,13 @@ export class HighLowController {
     }
     const url = response.url();
     if (url.match(/\/Buy/)) {
-      this.notifyBuyResponse(response);
+      this.receiveBuyResponse(response);
     }
     else if (url.match(/\/GetTraderBalance/)) {
-      response.json().then(responseJson => {
-        /*
-        {"data":{"balanceInformation":{"BonusInfo":null,"Cashback":null,"balance":25250,"bonusBalance":0},"retentionInformation":{"errors":[],"status":"success","campaignName":"STA","data":[{"Key":"MaxPayout","Value":"0"},{"Key":"STACount","Value":"0"},{"Key":"CampaignReason","Value":"Cashback"},{"Key":"PendingCashback","Value":"0"},{"Key":"PendingCashbackMonthly","Value":"0"},{"Key":"ReleasedJackpotCashback","Value":"0"},{"Key":"ReleasedJackpotID","Value":""}]}},"status":"success","timestamp":"2023-06-26T04:04:22Z"}
-        */
-        // logger.log(`/GetTraderBalance response: ${JSON.stringify(responseJson)}`);
-        const balance = responseJson?.data?.balanceInformation.balance;
-        if (balance) {
-          this.updateBalance(balance);
-        }
-      }).catch(err => {
-        logger.log(`json error on ${url}: ${err}`);
-      });
+      this.receiveGetTraderBalanceResponse(response);
     }
     else if (url.match(/\/GetTraderParams/)) {
-      /*
-      {"data":{"AccountType":0,"CurrencyCode":"JPY","CurrencyID":392,"CustomVariables":[],"Email":"q@d.cc","FirstName":"q","IsSuspended":false,"LanguageID":1041,"LastName":"d","LotSize":"10000","MaxDeposit":9999999,"MaxInvestment":200000,"MaxLotsInvestment":15,"MaxWithdraw":9999999,"MinDeposit":1000,"MinInvestment":1000,"MinLotsInvestment":1,"MinWithdraw":1,"OperatorID":1,"PurchaseInvestmentDefaultValue":1000,"PurchaseInvestmentDefaultValueLots":100,"PurchaseSliderInterval":100,"PurchaseSliderIntervalLots":10,"PurchaseSliderMaxValue":50000,"PurchaseSliderMaxValueLots":1000,"PurchaseSliderMinValue":1000,"PurchaseSliderMinValueLots":0,"PurchaseSuggestedAmounts":"5000, 10000, 50000","PurchaseSuggestedAmountsLots":""},"status":"success","timestamp":"2023-06-27T10:06:18Z"}
-      */
-      this.updateTraderParams(response);
+      this.receiveGetTraderParamsResponse(response);
     }
   }
 
@@ -163,7 +149,59 @@ export class HighLowController {
     throw new Error("Method not implemented.");
   }
 
-  updateBalance(balance: number): void {
+  receiveBuyResponse(response: puppeteer.HTTPResponse) {
+    const logger = this.logger.createLoggerWithTag("notifyBuyResponse");
+    const url = response.url();
+    logger.log(`Start: ${url}`);
+
+    response.json().then(responseJson => {
+      const postData = response.request().postData();
+      const msg = `Responded BUY request\n\`\`\`\n${postData}\n\`\`\`\nResponse\n\`\`\`\n${JSON.stringify(responseJson)}\`\`\``;
+      logger.postMessage(msg);
+      logger.log("End");
+    }).catch(err => {
+      logger.log(`json error on ${url}: ${err}`);
+    });
+  }
+
+  // {"data":{"balanceInformation":{"BonusInfo":null,"Cashback":null,"balance":25250,"bonusBalance":0},"retentionInformation":{"errors":[],"status":"success","campaignName":"STA","data":[{"Key":"MaxPayout","Value":"0"},{"Key":"STACount","Value":"0"},{"Key":"CampaignReason","Value":"Cashback"},{"Key":"PendingCashback","Value":"0"},{"Key":"PendingCashbackMonthly","Value":"0"},{"Key":"ReleasedJackpotCashback","Value":"0"},{"Key":"ReleasedJackpotID","Value":""}]}},"status":"success","timestamp":"2023-06-26T04:04:22Z"}
+  receiveGetTraderBalanceResponse(response: puppeteer.HTTPResponse) {
+    const logger = this.logger.createLoggerWithTag("receiveGetTraderBalanceResponse");
+    const url = response.url();
+    logger.log(`Start: ${url}`);
+
+    response.json().then(responseJson => {
+      const balance = responseJson?.data?.balanceInformation.balance;
+      if (balance) {
+        this.updateBalance(balance);
+      }
+      logger.log("End");
+    }).catch(err => {
+      logger.log(`json error on ${url}: ${err}`);
+    });
+  }
+
+  // {"data":{"AccountType":0,"CurrencyCode":"JPY","CurrencyID":392,"CustomVariables":[],"Email":"q@d.cc","FirstName":"q","IsSuspended":false,"LanguageID":1041,"LastName":"d","LotSize":"10000","MaxDeposit":9999999,"MaxInvestment":200000,"MaxLotsInvestment":15,"MaxWithdraw":9999999,"MinDeposit":1000,"MinInvestment":1000,"MinLotsInvestment":1,"MinWithdraw":1,"OperatorID":1,"PurchaseInvestmentDefaultValue":1000,"PurchaseInvestmentDefaultValueLots":100,"PurchaseSliderInterval":100,"PurchaseSliderIntervalLots":10,"PurchaseSliderMaxValue":50000,"PurchaseSliderMaxValueLots":1000,"PurchaseSliderMinValue":1000,"PurchaseSliderMinValueLots":0,"PurchaseSuggestedAmounts":"5000, 10000, 50000","PurchaseSuggestedAmountsLots":""},"status":"success","timestamp":"2023-06-27T10:06:18Z"}
+  receiveGetTraderParamsResponse(response: puppeteer.HTTPResponse) {
+    const logger = this.logger.createLoggerWithTag("updateTraderParams");
+    const url = response.url();
+    logger.log(`Start: ${url}`);
+
+    response.json().then(responseJson => {
+      const customVariables = responseJson?.data?.CustomVariables;
+      logger.log(`responseJson: ${JSON.stringify(responseJson)}`);
+      const loggedIn = !!(customVariables ?? customVariables.length > 0);
+      if (loggedIn !== this.loggedIn) {
+        logger.postMessage(`:key: *Updated login status* \`${this.loggedIn}\` -> \`${loggedIn}\``)
+        this.loggedIn = loggedIn;
+      }
+      logger.log("End");
+    }).catch(err => {
+      logger.log(`json error on ${url}: ${err}`);
+    });
+  }
+
+  private updateBalance(balance: number): void {
     const logger = this.logger.createLoggerWithTag("updateBalance");
     const balanceBefore = this.balance;
 
@@ -185,40 +223,6 @@ export class HighLowController {
     let emoji = diff >= 0 ? ":moneybag:" : ":money_with_wings:";
 
     logger.postMessage(`${emoji} *Balance updated*\n${balanceStr} (${diffStr})\n`);
-  }
-
-  notifyBuyResponse(response: puppeteer.HTTPResponse) {
-    const logger = this.logger.createLoggerWithTag("notifyBuyResponse");
-    const url = response.url();
-    logger.log(`Start: ${url}`);
-
-    response.json().then(responseJson => {
-      const postData = response.request().postData();
-      const msg = `Responded BUY request\n\`\`\`\n${postData}\n\`\`\`\nResponse\n\`\`\`\n${JSON.stringify(responseJson)}\`\`\``;
-      logger.postMessage(msg);
-      logger.log("End");
-    }).catch(err => {
-      logger.log(`json error on ${url}: ${err}`);
-    });
-  }
-
-  updateTraderParams(response: puppeteer.HTTPResponse) {
-    const logger = this.logger.createLoggerWithTag("updateTraderParams");
-    const url = response.url();
-    logger.log(`Start: ${url}`);
-
-    response.json().then(responseJson => {
-      const customVariables = responseJson?.data?.CustomVariables;
-      logger.log(`responseJson: ${JSON.stringify(responseJson)}`);
-      const loggedIn = !!(customVariables ?? customVariables.length > 0);
-      if (loggedIn !== this.loggedIn) {
-        logger.postMessage(`:key: *Updated login status* \`${this.loggedIn}\` -> \`${loggedIn}\``)
-        this.loggedIn = loggedIn;
-      }
-      logger.log("End");
-    }).catch(err => {
-      logger.log(`json error on ${url}: ${err}`);
-    });
   }
 
   private formatPrice(num: number, plus?: boolean): string {
