@@ -33,6 +33,9 @@ export class EntryCommandBuilder extends CommandBuilderBase<EntryCommandProps> {
           expectedPrice: {
             type: "number",
           },
+          comment: {
+            type: "string",
+          },
         },
         required: ["order", "pairName"],
       },
