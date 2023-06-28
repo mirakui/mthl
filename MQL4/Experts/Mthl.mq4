@@ -17,13 +17,13 @@ extern string PipeName = "\\\\.\\pipe\\mthl";
 extern int BufferHigh = 0;
 extern int BufferLow = 1;
 
-datetime LastBarTime;
-int LastPeriod;
+datetime LastSignalBarTime;
+int LastSignalPeriod;
 int Pipe = INVALID_HANDLE;
 
 int OnInit() {
-  LastBarTime = iTime(NULL, 0, 0);
-  LastPeriod = Period();
+  LastSignalBarTime = iTime(NULL, 0, 0);
+  LastSignalPeriod = Period();
 
   return(INIT_SUCCEEDED);
 }
@@ -39,25 +39,26 @@ void OnTick() {
   signalValue = DetectSignal(IndicatorName, BufferHigh);
   if (signalValue != 0) {
     Print("Signal detected at buffer " + IntegerToString(BufferHigh) + " (BufferHigh) with value ", signalValue);
-    SendMessage("{ \"command\": \"Entry\", \"order\": \"high\", \"pairName\": \"" + Symbol() + "\", \"expectedPrice\": " + DoubleToString(signalValue) + " }");
+    SendEntry("high", signalValue, IndicatorName);
   }
   signalValue = DetectSignal(IndicatorName, BufferLow);
   if (signalValue != 0) {
     Print("Signal detected at buffer " + IntegerToString(BufferLow) + " (BufferLow) with value ", signalValue);
-    SendMessage("{ \"command\": \"Entry\", \"order\": \"high\", \"pairName\": \"" + Symbol() + "\", \"expectedPrice\": " + DoubleToString(signalValue) + " }");
+    SendEntry("low", signalValue, IndicatorName);
   }
+}
 
+void SendEntry(string order, double expectedPrice, string indicatorName) {
   int currentPeriod = Period();
   datetime currentBarTime = iTime(NULL, 0, 0);
-  Print("Symbol=" + Symbol() + ", currentBarTime = " + TimeToString(currentBarTime, TIME_DATE | TIME_SECONDS) + " | " + EnumToString((ENUM_TIMEFRAMES)currentPeriod));
+  Print("[SendEntry] Symbol=" + Symbol() + ", IndicatorName=" + IndicatorName + ", currentBarTime = " + TimeToString(currentBarTime, TIME_DATE | TIME_SECONDS) + " | " + EnumToString((ENUM_TIMEFRAMES)currentPeriod));
+  SendMessage("{ \"command\": \"Entry\", \"order\": \"" + order + "\", \"pairName\": \"" + Symbol() + "\", \"expectedPrice\": " + DoubleToString(expectedPrice) + ", comment: \"" + IndicatorName + "\" }");
 }
 
 bool IsNewTick() {
   datetime barTime = iTime(NULL, 0, 0);
   int period = Period();
-  if (barTime != LastBarTime && period == LastPeriod) {
-    LastBarTime = barTime;
-    LastPeriod = period;
+  if (barTime != LastSignalBarTime && period == LastSignalPeriod) {
     return true;
   }
   else {
@@ -66,9 +67,13 @@ bool IsNewTick() {
 }
 
 double DetectSignal(string indicatorName, int bufferIndex) {
+  datetime barTime = iTime(NULL, 0, 0);
+  int period = Period();
   double v0 = iCustom(NULL, 0, indicatorName, bufferIndex, 2);
   double v1 = iCustom(NULL, 0, indicatorName, bufferIndex, 1);
   if (v0 == 0 && v1 != 0) {
+    LastSignalBarTime = barTime;
+    LastSignalPeriod = period;
     return v1;
   }
   else {
