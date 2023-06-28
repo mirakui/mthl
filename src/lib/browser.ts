@@ -67,10 +67,11 @@ export class Browser {
       headless: this.config.headless,
       defaultViewport: null,
       debuggingPort: this.config.port,
-      args: [
-        `--user-data-dir=tmp/chrome`,
-      ],
     }
+    if (this.config.args !== undefined && this.config.args.length > 0) {
+      opts.args = this.config.args;
+    }
+
     this.logger.log(`Launching new browser: ${JSON.stringify(opts)}`);
     return await puppeteer.launch(opts);
   }

@@ -40,6 +40,7 @@ export interface BrowserConfigParams {
   port: number;
   launch: boolean;
   headless: boolean;
+  args?: string[];
 }
 
 const ConfigParamsSchema = {

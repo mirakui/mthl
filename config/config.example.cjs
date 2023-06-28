@@ -16,6 +16,7 @@ module.exports = {
     port: 9222,
     launch: false,
     headless: true,
+    args: [ "--user-data-dir=tmp/chrome" ]
   },
   cron: {
     schedules: [
