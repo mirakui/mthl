@@ -37,13 +37,11 @@ void OnTick() {
   if (!IsNewTick()) { return; }
 
   signalValue = DetectSignal(IndicatorName, BufferHigh);
-  if (signalValue != 0) {
-    Print("Signal detected at buffer " + IntegerToString(BufferHigh) + " (BufferHigh) with value ", signalValue);
+  if (signalValue > 0) {
     SendEntry("high", signalValue, IndicatorName);
   }
   signalValue = DetectSignal(IndicatorName, BufferLow);
-  if (signalValue != 0) {
-    Print("Signal detected at buffer " + IntegerToString(BufferLow) + " (BufferLow) with value ", signalValue);
+  if (signalValue > 0) {
     SendEntry("low", signalValue, IndicatorName);
   }
 }
@@ -69,16 +67,13 @@ bool IsNewTick() {
 double DetectSignal(string indicatorName, int bufferIndex) {
   datetime barTime = iTime(NULL, 0, 0);
   int period = Period();
-  double v0 = iCustom(NULL, 0, indicatorName, bufferIndex, 2);
-  double v1 = iCustom(NULL, 0, indicatorName, bufferIndex, 1);
-  if (v0 == 0 && v1 != 0) {
+  double value = iCustom(NULL, 0, indicatorName, bufferIndex, 0);
+  if (value > 0) {
+    Print("Signal detected at buffer[" + IntegerToString(bufferIndex) + "] with value=" + DoubleToStr(value));
     LastSignalBarTime = barTime;
     LastSignalPeriod = period;
-    return v1;
   }
-  else {
-    return 0;
-  }
+  return value;
 }
 
 int OpenPipe() {
