@@ -52,7 +52,7 @@ void SendEntry(string order, double expectedPrice, string indicatorName) {
   int currentPeriod = Period();
   datetime currentBarTime = iTime(NULL, 0, 0);
   Print("[SendEntry] Symbol=" + Symbol() + ", IndicatorName=" + IndicatorName + ", currentBarTime = " + TimeToString(currentBarTime, TIME_DATE | TIME_SECONDS) + " | " + EnumToString((ENUM_TIMEFRAMES)currentPeriod));
-  SendMessage("{ \"command\": \"Entry\", \"order\": \"" + order + "\", \"pairName\": \"" + Symbol() + "\", \"expectedPrice\": " + DoubleToString(expectedPrice) + ", comment: \"" + IndicatorName + "\" }");
+  SendMessage("{ \"command\": \"Entry\", \"order\": \"" + order + "\", \"pairName\": \"" + Symbol() + "\", \"expectedPrice\": " + DoubleToString(expectedPrice) + ", \"comment\": \"" + IndicatorName + "\" }");
 }
 
 bool IsNewTick() {
