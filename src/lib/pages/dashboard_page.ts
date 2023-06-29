@@ -1,4 +1,5 @@
 import { BrowserActionResult } from "../browser";
+import { CacheStore } from "../cache_store";
 import { Retry } from "../retry";
 import { Page, PageConstructorProps } from "./page";
 
@@ -10,10 +11,19 @@ export interface AssetOption {
 
 export type AssetGroups = { [symbol: string]: AssetOption[] };
 
+const ASSET_GROUPS_CACHE_TTL = 60 * 60 * 1000;
+const ASSET_GROUPS_CACHE_KEY = "AssetGroups";
+
+export class DashboardPageError extends Error { }
+
 export class DashboardPage extends Page {
+  assetGroupsCache: CacheStore<AssetGroups>;
+
   constructor({ browser, logger }: PageConstructorProps) {
     const _logger = logger.createLoggerWithTag("DashboardPage");
     super({ browser, logger: _logger });
+
+    this.assetGroupsCache = new CacheStore<AssetGroups>({ ttl: ASSET_GROUPS_CACHE_TTL });
   }
 
   async goto() {
@@ -30,8 +40,23 @@ export class DashboardPage extends Page {
     }
   }
 
-  private async getAssetGroups(): Promise<BrowserActionResult<AssetGroups>> {
+  private async getAssetGroups(): Promise<AssetGroups> {
     const logger = this.logger.createLoggerWithTag("getAssetGroups");
+    logger.log("Start");
+
+    return await this.assetGroupsCache.fetch(ASSET_GROUPS_CACHE_KEY, async () => {
+      const result = await this.fetchAssetGroups();
+      if (result.success && result.result) {
+        return result.result;
+      }
+      else {
+        throw new DashboardPageError(`Failed to fetchAssetGroups: ${JSON.stringify(result)}`);
+      }
+    });
+  }
+
+  private async fetchAssetGroups(): Promise<BrowserActionResult<AssetGroups>> {
+    const logger = this.logger.createLoggerWithTag("fetchAssetGroups");
     logger.log("Start");
 
     const clickResult = await this.browser.click("div#highlow");
@@ -110,25 +135,24 @@ export class DashboardPage extends Page {
     const logger = this.logger.createLoggerWithTag("getAssetOption");
     logger.log(`Start: ${symbol}, ${durationText}`);
 
-    const assetGroupsResult = await this.getAssetGroups();
-    if (!assetGroupsResult.success) {
-      return { success: false, selector: assetGroupsResult.selector, message: assetGroupsResult.message };
+    try {
+      const assetGroups = await this.getAssetGroups();
+      const assetGroup = assetGroups[symbol];
+
+      if (!assetGroup) {
+        return { success: false, message: `No asset group for ${symbol}` };
+      }
+
+      logger.log(`finding ${durationText} from assetGroups: ${JSON.stringify(assetGroups)}`)
+      const assetOption = assetGroup.find(assetOption => assetOption.durationText === durationText);
+
+      if (!assetOption) {
+        return { success: false, message: `No asset option for ${symbol} ${durationText}` };
+      }
+      return { success: true, result: assetOption };
     }
-
-    const assetGroups = assetGroupsResult?.result ?? {};
-    const assetGroup = assetGroups[symbol];
-
-    if (!assetGroup) {
-      return { success: false, message: `No asset group for ${symbol}` };
+    catch (e) {
+      return { success: false, message: (e as Error).message };
     }
-
-    logger.log(`finding ${durationText} from assetGroups: ${JSON.stringify(assetGroups)}`)
-    const assetOption = assetGroup.find(assetOption => assetOption.durationText === durationText);
-
-    if (!assetOption) {
-      return { success: false, message: `No asset option for ${symbol} ${durationText}` };
-    }
-
-    return { success: true, result: assetOption };
   }
 }

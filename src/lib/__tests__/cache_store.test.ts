@@ -30,15 +30,15 @@ describe('CacheStore', () => {
   });
 
   test('fetch', async () => {
-    const fn1 = () => "value1";
-    const fn2 = () => "value2";
+    const fn1 = async () => "value1";
+    const fn2 = async () => "value2";
 
-    expect(store.fetch("key", fn1)).toBe("value1");
-    expect(store.fetch("key", fn2)).toBe("value1");
+    expect(await store.fetch("key", fn1)).toBe("value1");
+    expect(await store.fetch("key", fn2)).toBe("value1");
 
     await setTimeout(300);
 
-    expect(store.fetch("key", fn2)).toBe("value2");
+    expect(await store.fetch("key", fn2)).toBe("value2");
   });
 
   test('delete', async () => {

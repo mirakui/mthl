@@ -65,13 +65,13 @@ export class CacheStore<T> {
     delete this.entries[key];
   }
 
-  fetch(key: string, fn: () => T): T {
+  async fetch(key: string, fn: () => Promise<T>): Promise<T> {
     const entry = this.readEntry(key);
     if (entry !== undefined) {
       return entry.value;
     }
     else {
-      const value = fn();
+      const value = await fn();
       this.write(key, value);
       return value;
     }
