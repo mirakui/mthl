@@ -31,7 +31,7 @@ module.exports = {
     ]
   },
   entry: {
-    rateLimitPerMinute: 2,
+    cooldownMilliSeconds: 60 * 1000,
     durationText: "15m",
     tradeAmount: 1000,
   }

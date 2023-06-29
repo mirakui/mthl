@@ -1,6 +1,6 @@
 import { Mthl } from "../mthl";
 import { CommandBase, CommandBuilderBase, CommandPropsBase, CommandResultBase } from "./base";
-import { Throttling } from "../throttling";
+import { CacheStore } from "../cache_store";
 
 export interface EntryCommandProps extends CommandPropsBase {
   order: "high" | "low";
@@ -48,27 +48,40 @@ export class EntryCommandBuilder extends CommandBuilderBase<EntryCommandProps> {
   }
 }
 
+type Semaphores = CacheStore<null>;
+
 export class EntryCommand extends CommandBase<EntryCommandProps, EntryCommandResult> {
   readonly name: string = "Entry";
-  static _throttling?: Throttling<EntryCommandResult>;
+  static _semaphores?: Semaphores;
 
   constructor(props: EntryCommandProps) {
     super(props);
   }
 
-  get throttling(): Throttling<EntryCommandResult> {
-    if (EntryCommand._throttling === undefined) {
-      EntryCommand._throttling = new Throttling(Mthl.config.entry.rateLimitPerMinute, 60 * 1000 * 1000);
+  get semaphores(): Semaphores {
+    if (EntryCommand._semaphores === undefined) {
+      EntryCommand._semaphores = new CacheStore<null>({ ttl: Mthl.config.entry.cooldownMilliSeconds });
     }
-    return EntryCommand._throttling;
+    return EntryCommand._semaphores;
   }
 
   async run(): Promise<EntryCommandResult> {
     const logger = this.logger.createLoggerWithTag("EntryCommand");
-    const status = this.throttling.status();
-    logger.log(`Throttling: ${status}`);
+    logger.log("Start");
     try {
-      return await this.throttling.throttle(this._run);
+      const semaphore = this.semaphores.readEntry(this.props.pairName);
+      if (semaphore !== undefined) {
+        const result = {
+          success: false,
+          error: `Entry skipped: ${this.props.pairName} is in cooldown until ${semaphore.expiresAt}`,
+        }
+        return result;
+      }
+      else {
+        const result = this._run();
+        this.semaphores.write(this.props.pairName, null);
+        return result;
+      }
     }
     catch (err: any) {
       logger.log(`[Error] ${err}`);

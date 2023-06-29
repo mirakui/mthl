@@ -77,7 +77,7 @@ export class CacheStore<T> {
     }
   }
 
-  private readEntry(key: string): CacheEntry<T> | undefined {
+  readEntry(key: string): CacheEntry<T> | undefined {
     const entry = this.entries[key];
     if (entry === undefined) {
       return undefined;
