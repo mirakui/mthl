@@ -1,3 +1,4 @@
+import { ca } from "date-fns/locale";
 import { BrowserActionResult } from "../browser";
 import { CacheStore } from "../cache_store";
 import { Retry } from "../retry";
@@ -6,6 +7,7 @@ import { Page, PageConstructorProps } from "./page";
 export interface AssetOption {
   symbol: string | null;
   durationText: string | null;
+  remainingTimeText: string | null;
   id: number | null;
 }
 
@@ -105,14 +107,25 @@ export class DashboardPage extends Page {
       const optionCards = await assetCard.$$("div[class^=Carousel_rotateContent__]");
 
       const promises = optionCards.map(async optionCard => {
+        let durationText: string | null;
+        let id: string | null;
+        let remainingTimeText: string | null = null;
         try {
-          const durationText = await optionCard.$eval("div[class^=optionCard_duration__]", elm => elm.textContent);
-          const id = await optionCard.$eval("div[class*=optionCard_optionCardWrapper]", elm => elm.id);
-          const assetOption = { symbol, durationText, id: parseInt(id) };
-          return assetOption;
+          durationText = await optionCard.$eval("div[class^=optionCard_duration__]", elm => elm.textContent);
+          id = await optionCard.$eval("div[class*=optionCard_optionCardWrapper]", elm => elm.id);
         } catch (e) {
           return Promise.reject(e);
         }
+
+        try {
+          remainingTimeText = await optionCard.$eval("div[class^=optionCard_time__]", elm => {
+            return elm.textContent || null; // elm.textContent can be ""
+          });
+        }
+        catch (e) { }
+
+        const assetOption: AssetOption = { symbol, durationText, remainingTimeText, id: parseInt(id) };
+        return assetOption;
       });
 
       const assetOptions = await Promise.all(promises);
@@ -144,7 +157,9 @@ export class DashboardPage extends Page {
       }
 
       logger.log(`finding ${durationText} from assetGroups: ${JSON.stringify(assetGroups)}`)
-      const assetOption = assetGroup.find(assetOption => assetOption.durationText === durationText);
+      const assetOption = assetGroup.find(assetOption => {
+        return assetOption.durationText === durationText && assetOption.remainingTimeText !== null;
+      });
 
       if (!assetOption) {
         return { success: false, message: `No asset option for ${symbol} ${durationText}` };
