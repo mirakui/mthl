@@ -15,7 +15,13 @@ export class TradePage extends Page {
 
     const url = this.pathToUrl(`/trade/${assetOption.id}`);
     const result = await this.browser.goto(url);
-    await this.browser.waitForSelector("#chart-container[class*=chart_loaded]:not([class*=chart_loadingOption])");
+    const selector = "#chart-container[class*=chart_loaded]:not([class*=chart_loadingOption])"
+    try {
+      await this.browser.waitForSelector(selector);
+    }
+    catch (err) {
+      return { success: false, selector: selector, message: (err as Error).message };
+    }
 
     logger.log("End");
     return result;

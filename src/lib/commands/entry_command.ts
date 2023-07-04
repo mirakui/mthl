@@ -98,43 +98,49 @@ export class EntryCommand extends CommandBase<EntryCommandProps, EntryCommandRes
     logger.log("Start");
     let result: EntryCommandResult;
 
-    await this.controller.loginIfNeeded();
+    try {
+      await this.controller.loginIfNeeded();
 
-    const dashboardPage = await this.controller.gotoDashboard();
+      const dashboardPage = await this.controller.gotoDashboard();
 
-    const durationText = this.props.timePeriod ?? "15分";
-    const pairName = this.normalizePairName(this.props.pairName);
-    const assetOptionResult = await dashboardPage.getAssetOption(pairName, durationText);
+      const durationText = this.props.timePeriod ?? "15分";
+      const pairName = this.normalizePairName(this.props.pairName);
+      const assetOptionResult = await dashboardPage.getAssetOption(pairName, durationText);
 
-    if (assetOptionResult.success === false || assetOptionResult.result === undefined) {
-      logger.log(`[Error] ${JSON.stringify(assetOptionResult)}`);
-      return {
-        success: false,
-        error: assetOptionResult.message,
-      };
+      if (assetOptionResult.success === false || assetOptionResult.result === undefined) {
+        logger.log(`[Error] ${JSON.stringify(assetOptionResult)}`);
+        return {
+          success: false,
+          error: assetOptionResult.message,
+        };
+      }
+
+      const tradePage = await this.controller.gotoTradePage(assetOptionResult.result);
+      result = await tradePage.enableOneClickTrading();
+      if (!result.success) { return result }
+
+      result = await tradePage.setTradeAmount(Mthl.config.entry.tradeAmount);
+      if (!result.success) { return result }
+
+      switch (this.props.order) {
+        case "high":
+          result = await tradePage.entry("high");
+          break;
+        case "low":
+          result = await tradePage.entry("low");
+          break;
+        default:
+          throw new Error(`Invalid order: ${this.props.order}`);
+      }
+      this.controller.browser.postScreenshot();
+
+      logger.log("End");
+      return result;
     }
-
-    const tradePage = await this.controller.gotoTradePage(assetOptionResult.result);
-    result = await tradePage.enableOneClickTrading();
-    if (!result.success) { return result }
-
-    result = await tradePage.setTradeAmount(Mthl.config.entry.tradeAmount);
-    if (!result.success) { return result }
-
-    switch (this.props.order) {
-      case "high":
-        result = await tradePage.entry("high");
-        break;
-      case "low":
-        result = await tradePage.entry("low");
-        break;
-      default:
-        throw new Error(`Invalid order: ${this.props.order}`);
+    catch (err) {
+      logger.log(`[Error] ${err}`);
+      return { success: false, error: (err as Error).toString() };
     }
-    this.controller.browser.postScreenshot();
-
-    logger.log("End");
-    return result;
   }
 
   normalizePairName(pairName: string): string {

@@ -90,12 +90,14 @@ export class HighLowController {
     const result = await this.dashboardPage.goto();
 
     logger.log("End");
-    if (result.success) {
-      return this.dashboardPage;
-    }
-    else {
-      throw new HighLowControllerError(`Failed to gotoDashboard: ${JSON.stringify(result)}`);
-    }
+    return new Promise((resolve, reject) => {
+      if (result.success) {
+        resolve(this.dashboardPage);
+      }
+      else {
+        reject(new HighLowControllerError(`Failed to gotoDashboard: ${JSON.stringify(result)}`));
+      }
+    });
   }
 
   async gotoTradePage(assetOption: AssetOption): Promise<TradePage> {
@@ -106,12 +108,14 @@ export class HighLowController {
     await this.browser.waitForSelector("#chart-container[class*=chart_loaded]:not([class*=chart_loadingOption])");
 
     logger.log("End");
-    if (result.success) {
-      return this.tradePage;
-    }
-    else {
-      throw new HighLowControllerError(`Failed to gotoTradePage: ${JSON.stringify(result)}`);
-    }
+    return new Promise((resolve, reject) => {
+      if (result.success) {
+        resolve(this.tradePage);
+      }
+      else {
+        reject(new HighLowControllerError(`Failed to gotoTradePage: ${JSON.stringify(result)}`));
+      }
+    });
   }
 
   async warmup(): Promise<BrowserActionResult<AssetOption>> {
