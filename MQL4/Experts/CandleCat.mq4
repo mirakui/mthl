@@ -44,11 +44,12 @@ void SendBars(int barCount) {
 }
 
 string GetBarString(int barIndex) {
-  double OpenPrice = iOpen(Symbol(), PERIOD_CURRENT, barIndex);
-  double ClosePrice = iClose(Symbol(), PERIOD_CURRENT, barIndex));
-  double HighPrice = iHigh(Symbol(), PERIOD_CURRENT, barIndex);
-  double LowPrice = iLow(Symbol(), PERIOD_CURRENT, barIndex));
-  return StringFormat("%.2f;%.2f;%.2f;%.2f", OpenPrice, ClosePrice, HighPrice, LowPrice);
+  datetime barTime = iTime(NULL, PERIOD_CURRENT, barIndex);
+  double openPrice = iOpen(Symbol(), PERIOD_CURRENT, barIndex);
+  double closePrice = iClose(Symbol(), PERIOD_CURRENT, barIndex);
+  double highPrice = iHigh(Symbol(), PERIOD_CURRENT, barIndex);
+  double lowPrice = iLow(Symbol(), PERIOD_CURRENT, barIndex);
+  return StringFormat("%s;%.3f;%.3f;%.3f;%.3f", TimeToString(barTime, TIME_DATE | TIME_SECONDS), openPrice, closePrice, highPrice, lowPrice);
 }
 
 bool IsNewTick() {
