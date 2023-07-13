@@ -16,6 +16,7 @@ extern string IndicatorName = "TESTarrow";
 extern string PipeName = "\\\\.\\pipe\\mthl";
 extern int BufferHigh = 0;
 extern int BufferLow = 1;
+extern bool Aggressive = false;
 
 datetime LastSignalBarTime;
 int LastSignalPeriod;
@@ -24,6 +25,7 @@ int Pipe = INVALID_HANDLE;
 int OnInit() {
   LastSignalBarTime = iTime(NULL, 0, 0);
   LastSignalPeriod = Period();
+  Print("Started: Symbol=" + Symbol() + ", IndicatorName=" + IndicatorName + ", PipeName=" + PipeName + ", Aggressive=" + BoolToString(Aggressive));
 
   return(INIT_SUCCEEDED);
 }
@@ -69,16 +71,26 @@ bool IsNewTick() {
 double DetectSignal(string indicatorName, int bufferIndex) {
   datetime barTime = iTime(NULL, 0, 0);
   int period = Period();
-  double v0 = iCustom(NULL, 0, indicatorName, bufferIndex, 2);
-  double v1 = iCustom(NULL, 0, indicatorName, bufferIndex, 1);
-  if (v0 == 0 && v1 != 0) {
-    LastSignalBarTime = barTime;
-    LastSignalPeriod = period;
-    return v1;
+
+  if (Aggressive) {
+    double v = iCustom(NULL, 0, indicatorName, bufferIndex, 0);
+    if (v > 0) {
+      LastSignalBarTime = barTime;
+      LastSignalPeriod = period;
+      return v;
+    }
   }
   else {
-    return 0;
+    double v0 = iCustom(NULL, 0, indicatorName, bufferIndex, 2);
+    double v1 = iCustom(NULL, 0, indicatorName, bufferIndex, 1);
+    if (v0 == 0 && v1 != 0) {
+      LastSignalBarTime = barTime;
+      LastSignalPeriod = period;
+      return v1;
+    }
   }
+
+  return 0;
 }
 
 int OpenPipe() {
