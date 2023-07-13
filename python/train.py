@@ -8,6 +8,8 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
+BUFFER_SIZE = 60
+
 # Load dataset
 if len(sys.argv) < 2:
     print('Please specify the path to the dataset')
@@ -19,14 +21,14 @@ df.columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
 
 print('Calculating trends...')
 
-# Calculate the trend of last 60 minutes and add it to the dataset
+# Calculate the trend of last BUFFER_SIZE minutes and add it to the dataset
 trends = []
 for i in range(len(df)):
-    if i < 60:
+    if i < BUFFER_SIZE:
         trends.append(0)
     else:
-        highs = np.sum(df['High'].iloc[i-60:i] > df['Open'].iloc[i-60:i])
-        lows = np.sum(df['Low'].iloc[i-60:i] < df['Open'].iloc[i-60:i])
+        highs = np.sum(df['High'].iloc[i-BUFFER_SIZE:i] > df['Open'].iloc[i-BUFFER_SIZE:i])
+        lows = np.sum(df['Low'].iloc[i-BUFFER_SIZE:i] < df['Open'].iloc[i-BUFFER_SIZE:i])
         if highs > lows:
             trends.append(1)
         else:
@@ -39,8 +41,8 @@ print('Preparing dataset...')
 scaler = MinMaxScaler()
 scaled_df = scaler.fit_transform(df[['Open', 'High', 'Low', 'Close', 'Volume', 'Trend']])
 X, y = [], []
-for i in range(60, len(scaled_df)):
-    X.append(scaled_df[i-60:i])
+for i in range(BUFFER_SIZE, len(scaled_df)):
+    X.append(scaled_df[i-BUFFER_SIZE:i])
     y.append(1 if df['Open'].iloc[i] > df['Close'].iloc[i-1] else 0)
 X = np.array(X)
 y = np.array(y)
@@ -72,6 +74,6 @@ print('Accuracy: ', accuracy_score(y_test, y_pred))
 
 # Save the model
 now = datetime.now().strftime("%Y%m%d%H%M")
-model_name = f'mthl-{now}.h5'
+model_name = f'mthl-{now}.keras'
 print(f'Saving model as {model_name}')
 model.save(model_name)
