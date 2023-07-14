@@ -1,3 +1,4 @@
+import sys
 from lib.server.server_factory import ServerFactory
 
 PIPE_PATH = "\\\\.\\pipe\\candlecat"
@@ -14,6 +15,8 @@ try:
         line = server.readlines()
         outfile.write(line + "\n")
         print(".", end="")
+        outfile.flush()
+        sys.stdout.flush()
 
 finally:
     print("Closing server")

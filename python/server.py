@@ -1,16 +1,16 @@
 from lib.server.server_factory import ServerFactory
 
-PIPE_PATH = '\\\\.\\pipe\\foo'
+PIPE_PATH = "\\\\.\\pipe\\candlecat"
 
-print(f'Opening pipe: {PIPE_PATH}')
+print(f"Opening pipe: {PIPE_PATH}")
 server = ServerFactory.create_server(PIPE_PATH)
 server.listen()
 try:
-    print('Receiving data from client...')
+    print("Receiving data from client...")
     while True:
         line = server.readlines()
-        print(f'Received: {line}')
+        print(f"Received: {line}")
 
 finally:
-    print('Closing server')
+    print("Closing server")
     server.close()
