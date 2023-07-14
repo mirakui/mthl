@@ -13,7 +13,7 @@
 #property strict
 
 extern string PipeName = "\\\\.\\pipe\\candlecat";
-extern int PreloadBars = 10;
+extern int PreloadBars = 60;
 
 datetime LastBarTime;
 int LastPeriod;
@@ -38,8 +38,11 @@ void OnTick() {
 
 void SendBars(int barCount) {
   for (int i = 0; i < barCount; i++) {
-    string barString = GetBarString(i + 1);
-    SendMessage(barString);
+    string barString = GetBarString(barCount - i);
+    int error = SendMessage(barString);
+    if (error != ERR_NO_ERROR) {
+      break;
+    }
   }
 }
 
