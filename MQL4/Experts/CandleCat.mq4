@@ -22,12 +22,14 @@ int Pipe = INVALID_HANDLE;
 int OnInit() {
   LastBarTime = iTime(NULL, 0, 0);
   LastPeriod = Period();
+  OpenPipe();
   SendBars(PreloadBars);
 
   return(INIT_SUCCEEDED);
 }
 
 void OnDeinit(const int reason) {
+  ClosePipe();
 }
 
 void OnTick() {
@@ -90,7 +92,6 @@ void ClosePipe() {
 }
 
 int SendMessage(string message) {
-  OpenPipe();
   FileWriteString(Pipe, message + "\r\n");
 
   int lastError = GetLastError();
@@ -100,7 +101,6 @@ int SendMessage(string message) {
   else {
     Print("[ERROR] SendMessage: " + message + " / Error: " + ErrorDescription(lastError));
   }
-  ClosePipe();
 
   return lastError;
 }
