@@ -8,10 +8,9 @@ server.listen()
 try:
     print('Receiving data from client...')
     while True:
-        if server.accept():
-            line = server.readlines()
-            if line == '':
-                break
+        line = server.readlines()
+        print(f'Received: {line}')
+
 finally:
     print('Closing server')
     server.close()
