@@ -19,3 +19,5 @@ config/config.cjs
 *.exe
 config/.secret.json
 __pycache__
+*.h5
+*.keras
