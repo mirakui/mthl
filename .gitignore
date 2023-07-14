@@ -18,3 +18,4 @@ config/config.cjs
 .env
 *.exe
 config/.secret.json
+__pycache__
