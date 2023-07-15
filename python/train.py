@@ -8,6 +8,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 
+EPOCHS = 10
 WINDOW_SIZE = 60
 
 # Load dataset
@@ -51,7 +52,7 @@ print("Training model...")
 
 # Compile and train the model
 model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
-model.fit(x_train, y_train, epochs=1, batch_size=32)
+model.fit(x_train, y_train, epochs=EPOCHS, batch_size=32)
 
 print("Evaluating model...")
 # Make predictions

@@ -42,12 +42,12 @@ class StrategyTester:
         self.test_data = data_loader.load_and_preprocess()
 
     def run(self):
-        print("Running strategy tester...")
         predictor = Predictor(self.model_path, self.window_size)
         predictor.load_model()
         results = {}
         self.stats.clear()
 
+        print("Running strategy tester...")
         with ProgressBar(max_value=self.test_data.shape[0]) as bar:
             for index, row in self.test_data.iterrows():
                 predictor.add(
