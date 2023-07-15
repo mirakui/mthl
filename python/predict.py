@@ -4,8 +4,9 @@ from keras.models import load_model
 import numpy as np
 
 BUFFER_SIZE = 60
-#PIPE_PATH = '\\\\.\\pipe\\candlecat'
-PIPE_PATH = '/tmp/candlecat'
+# PIPE_PATH = '\\\\.\\pipe\\candlecat'
+PIPE_PATH = "/tmp/candlecat"
+
 
 class Server:
     def __init__(self):
@@ -21,7 +22,7 @@ class Predictor:
         self.buffer = np.empty((0, 5), dtype=object)
 
     def setup(self):
-        print(f'Loading model from {self.model_path}')
+        print(f"Loading model from {self.model_path}")
         self.model = load_model(self.model_path)
 
     def add(self, datetime, open_price, high_price, low_price, close_price):
@@ -30,7 +31,11 @@ class Predictor:
             return
 
         # バッファに追加
-        self.buffer = np.append(self.buffer, np.array([[datetime, open_price, high_price, low_price, close_price]]), axis=0)
+        self.buffer = np.append(
+            self.buffer,
+            np.array([[datetime, open_price, high_price, low_price, close_price]]),
+            axis=0,
+        )
 
         # バッファが60件以上ならば、最初の行を削除
         if len(self.buffer) > BUFFER_SIZE:
@@ -42,11 +47,13 @@ class Predictor:
         if not self.is_ready():
             return
 
-        input_data = self.buffer[:, 1:].astype(float) # 日時を除いた価格データのみを渡す
+        input_data = self.buffer[:, 1:].astype(float)  # 日時を除いた価格データのみを渡す
         prediction = self.make_prediction(self.model, input_data)
         last_close_price = self.buffer[-1, 4]
-        highlow = 'HIGH' if prediction > 0.5 else 'LOW'
-        print(f'PREDICTION: {highlow} ({prediction}) (last close price: {last_close_price})')
+        highlow = "HIGH" if prediction > 0.5 else "LOW"
+        print(
+            f"PREDICTION: {highlow} ({prediction}) (last close price: {last_close_price})"
+        )
 
     def is_ready(self):
         return len(self.buffer) >= BUFFER_SIZE
@@ -62,41 +69,45 @@ class Predictor:
         # return 'HIGH' if prediction > 0.5 else 'LOW'
         return self.model.predict(input_data)
 
-def sock_readlines(sock, recv_buffer=4096, delim='\n'):
-    buffer = ''
+
+def sock_readlines(sock, recv_buffer=4096, delim="\n"):
+    buffer = ""
     data = True
     while data:
         data = sock.recv(recv_buffer)
         buffer += data.decode()
 
         while buffer.find(delim) != -1:
-            line, buffer = buffer.split('\n', 1)
+            line, buffer = buffer.split("\n", 1)
             yield line
     return
 
+
 def main():
     if len(sys.argv) < 2:
-        print('Please specify the path to the model')
+        print("Please specify the path to the model")
         sys.exit(1)
     model_path = sys.argv[1]
     predictor = Predictor(model_path)
     predictor.setup()
 
-    print(f'Opening pipe: {PIPE_PATH}')
+    print(f"Opening pipe: {PIPE_PATH}")
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     sock.bind(PIPE_PATH)
     sock.listen(1)
 
     while True:
-        print('waiting for a connection')
+        print("waiting for a connection")
         connection, client_address = sock.accept()
 
         try:
-            print('connection from', client_address)
+            print("connection from", client_address)
 
             for line in sock_readlines(connection):
-                print('received {!r}'.format(line))
-                datetime, open_price, high_price, low_price, close_price = line.split(',')
+                print("received {!r}".format(line))
+                datetime, open_price, high_price, low_price, close_price = line.split(
+                    ","
+                )
                 predictor.add(datetime, open_price, high_price, low_price, close_price)
                 if predictor.is_ready():
                     predictor.predict()
@@ -104,5 +115,6 @@ def main():
         finally:
             connection.close()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

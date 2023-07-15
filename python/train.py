@@ -1,15 +1,14 @@
-import datetime
 import sys
+from datetime import datetime
 
 import numpy as np
-from keras.layers import LSTM, Dense, Dropout
-from keras.models import Sequential
+import tensorflow as tf
 from lib.data_loader import DataLoader
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 
-BUFFER_SIZE = 60
+WINDOW_SIZE = 60
 
 # Load dataset
 if len(sys.argv) < 2:
@@ -19,62 +18,44 @@ data_path = sys.argv[1]
 print(f"Loading dataset from {data_path}")
 
 data_loader = DataLoader(data_path)
-df = data_loader.load()
-
-print("Calculating trends...")
-
-# Calculate the trend of last BUFFER_SIZE minutes and add it to the dataset
-trends = []
-for i in range(len(df)):
-    if i < BUFFER_SIZE:
-        trends.append(0)
-    else:
-        highs = np.sum(
-            df["High"].iloc[i - BUFFER_SIZE : i] > df["Open"].iloc[i - BUFFER_SIZE : i]
-        )
-        lows = np.sum(
-            df["Low"].iloc[i - BUFFER_SIZE : i] < df["Open"].iloc[i - BUFFER_SIZE : i]
-        )
-        if highs > lows:
-            trends.append(1)
-        else:
-            trends.append(0)
-df["Trend"] = trends
+df = data_loader.load_and_preprocess()
 
 print("Preparing dataset...")
 
 # Prepare dataset for model training
 scaler = MinMaxScaler()
-scaled_df = scaler.fit_transform(
-    df[["Open", "High", "Low", "Close", "Volume", "Trend"]]
-)
-X, y = [], []
-for i in range(BUFFER_SIZE, len(scaled_df)):
-    X.append(scaled_df[i - BUFFER_SIZE : i])
+scaled_df = scaler.fit_transform(df[["Open", "High", "Low", "Close", "Trend"]])
+x, y = [], []
+for i in range(WINDOW_SIZE, len(scaled_df)):
+    x.append(scaled_df[i - WINDOW_SIZE : i])
     y.append(1 if df["Open"].iloc[i] > df["Close"].iloc[i - 1] else 0)
-X = np.array(X)
+x = np.array(x)
 y = np.array(y)
 
 # Split the dataset into training and test sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, shuffle=False)
 
 # Build LSTM model
-model = Sequential()
-model.add(LSTM(units=50, return_sequences=True, input_shape=(X_train.shape[1], 6)))
-model.add(Dropout(0.2))
-model.add(LSTM(units=50))
-model.add(Dropout(0.2))
-model.add(Dense(units=1, activation="sigmoid"))
+model = tf.keras.models.Sequential()
+model.add(
+    tf.keras.layers.LSTM(
+        units=50, return_sequences=True, input_shape=(x_train.shape[1], 5)
+    )
+)
+model.add(tf.keras.layers.Dropout(0.2))
+model.add(tf.keras.layers.LSTM(units=50))
+model.add(tf.keras.layers.Dropout(0.2))
+model.add(tf.keras.layers.Dense(units=1, activation="sigmoid"))
 
 print("Training model...")
 
 # Compile and train the model
 model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
-model.fit(X_train, y_train, epochs=10, batch_size=32)
+model.fit(x_train, y_train, epochs=1, batch_size=32)
 
 print("Evaluating model...")
 # Make predictions
-y_pred = model.predict(X_test)
+y_pred = model.predict(x_test)
 y_pred = np.where(y_pred > 0.5, 1, 0)
 
 # Evaluate the model
@@ -84,4 +65,16 @@ print("Accuracy: ", accuracy_score(y_test, y_pred))
 now = datetime.now().strftime("%Y%m%d%H%M")
 model_name = f"mthl-{now}.keras"
 print(f"Saving model as {model_name}")
-model.save(model_name)
+tf.keras.saving.save_model(model, model_name, save_format="keras")
+
+# Load the model
+print(f"Loading model: {model_name}")
+# .keras だと compile=True (デフォルト) でエラーになる。 .h5 だとならない
+loaded_model = tf.keras.saving.load_model(model_name, compile=False)
+print(f"Successfully loaded model: {model_name}")
+y_pred2 = model.predict(x_test)
+y_pred2 = np.where(y_pred2 > 0.5, 1, 0)
+
+# Evaluate the model
+print("Accuracy of loaded model: ", accuracy_score(y_test, y_pred2))
+print(f"Finished")
