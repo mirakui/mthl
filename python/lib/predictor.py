@@ -52,7 +52,7 @@ class Predictor:
         # We are using sigmoid in the output layer, so the prediction will be a value between 0 and 1.
         # We will interpret this as a binary prediction, with values > 0.5 corresponding to 1 (UP) and otherwise 0 (DOWN)
         # return 'HIGH' if prediction > 0.5 else 'LOW'
-        prediction = self.model.predict(expanded_ohlo)
+        prediction = self.model.predict(expanded_ohlo, verbose=0)
 
         last_close_price = float(self.buffer[-1, 4])
 

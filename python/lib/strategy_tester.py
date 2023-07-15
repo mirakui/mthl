@@ -1,5 +1,6 @@
 from lib.predictor import Predictor
 from lib.data_loader import DataLoader
+from progressbar import ProgressBar
 
 
 class Stats:
@@ -41,35 +42,39 @@ class StrategyTester:
         self.test_data = data_loader.load_and_preprocess()
 
     def run(self):
+        print("Running strategy tester...")
         predictor = Predictor(self.model_path, self.window_size)
         predictor.load_model()
         results = {}
         self.stats.clear()
 
-        for index, row in self.test_data.iterrows():
-            predictor.add(
-                row["Date"],
-                row["Open"],
-                row["High"],
-                row["Low"],
-                row["Close"],
-                row["Trend"],
-            )
-            if predictor.is_ready():
-                predictor_result = predictor.predict()
-                trade = self.strategy.make_decision(predictor_result)
-                if trade is not None:
-                    results[index] = {"trade": trade}
-                    self.stats.inc("trades")
-                    self.stats.inc("trades_{}".format(trade["direction"]))
+        with ProgressBar(max_value=self.test_data.shape[0]) as bar:
+            for index, row in self.test_data.iterrows():
+                predictor.add(
+                    row["Date"],
+                    row["Open"],
+                    row["High"],
+                    row["Low"],
+                    row["Close"],
+                    row["Trend"],
+                )
+                if predictor.is_ready():
+                    predictor_result = predictor.predict()
+                    trade = self.strategy.make_decision(predictor_result)
+                    if trade is not None:
+                        results[index] = {"trade": trade}
+                        self.stats.inc("trades")
+                        self.stats.inc("trades_{}".format(trade["direction"]))
 
-            if index > self.trade_duration:
-                past_index = index - self.trade_duration
-                if past_index in results and "trade" in results[past_index]:
-                    past_trade = results[past_index]["trade"]
-                    winlose = self.evaluate_trade(row["Open"], past_trade)
-                    results[index - self.trade_duration]["winlose"] = winlose
-                    self.stats.inc(winlose)
+                if index > self.trade_duration:
+                    past_index = index - self.trade_duration
+                    if past_index in results and "trade" in results[past_index]:
+                        past_trade = results[past_index]["trade"]
+                        winlose = self.evaluate_trade(row["Open"], past_trade)
+                        results[index - self.trade_duration]["winlose"] = winlose
+                        self.stats.inc(winlose)
+
+                bar.update(index)
 
         return self.stats
 
