@@ -15,9 +15,12 @@ class BasicStrategy(Strategy):
             return None
 
         trade = None
+        # print(f"Prediction: {predictor_result.prediction}")
         if predictor_result.prediction >= self.high_threshold:
+            self.cooldown_timer = self.cooldown_duration
             trade = {"direction": "high", "position": predictor_result.last_close_price}
         elif predictor_result.prediction <= self.low_threshold:
+            self.cooldown_timer = self.cooldown_duration
             trade = {"direction": "low", "position": predictor_result.last_close_price}
 
         return trade

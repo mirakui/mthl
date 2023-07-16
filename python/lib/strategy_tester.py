@@ -36,6 +36,7 @@ class StrategyTester:
         self.trade_duration = trade_duration
         self.stats = Stats()
         self.test_data = None
+        self.results = {}
 
     def load(self):
         data_loader = DataLoader(self.data_path)
@@ -44,7 +45,7 @@ class StrategyTester:
     def run(self):
         predictor = Predictor(self.model_path, self.window_size)
         predictor.load_model()
-        results = {}
+        self.results = {}
         self.stats.clear()
 
         print("Running strategy tester...")
@@ -60,18 +61,27 @@ class StrategyTester:
                 )
                 if predictor.is_ready():
                     predictor_result = predictor.predict()
+                    self.results[index] = {
+                        "prediction": predictor_result.prediction,
+                    }
                     trade = self.strategy.make_decision(predictor_result)
                     if trade is not None:
-                        results[index] = {"trade": trade}
+                        self.results[index]["trade"] = trade
                         self.stats.inc("trades")
                         self.stats.inc("trades_{}".format(trade["direction"]))
 
                 if index > self.trade_duration:
                     past_index = index - self.trade_duration
-                    if past_index in results and "trade" in results[past_index]:
-                        past_trade = results[past_index]["trade"]
+                    if (
+                        past_index in self.results
+                        and "trade" in self.results[past_index]
+                    ):
+                        past_trade = self.results[past_index]["trade"]
                         winlose = self.evaluate_trade(row["Open"], past_trade)
-                        results[index - self.trade_duration]["winlose"] = winlose
+                        self.results[index - self.trade_duration]["winlose"] = winlose
+                        self.results[index - self.trade_duration]["result_price"] = row[
+                            "Open"
+                        ]
                         self.stats.inc(winlose)
 
                 bar.update(index)
@@ -88,3 +98,36 @@ class StrategyTester:
             return "win" if current_price < position else "lose"
         else:
             raise Exception("Unknown direction: {!r}".format(direction))
+
+    def dump_results(self, path):
+        print("Dumping results...")
+        with open(path, "w") as f:
+            f.write("Date,Open,High,Low,Close,Trend,Trade,WinLose\n")
+            with ProgressBar(max_value=self.test_data.shape[0]) as bar:
+                for index, row in self.test_data.iterrows():
+                    prediction = direction = position = winlose = result_price = ""
+                    if index in self.results:
+                        prediction = self.results[index]["prediction"]
+                        if "trade" in self.results[index]:
+                            trade = self.results[index]["trade"]
+                            direction = trade["direction"]
+                            position = trade["position"]
+                        if "winlose" in self.results[index]:
+                            winlose = self.results[index]["winlose"]
+                        if "result_price" in self.results[index]:
+                            result_price = self.results[index]["result_price"]
+                    line = "{},{},{},{},{},{},{},{},{},{},{}\n".format(
+                        row["Date"],
+                        row["Open"],
+                        row["High"],
+                        row["Low"],
+                        row["Close"],
+                        row["Trend"],
+                        prediction,
+                        direction,
+                        position,
+                        result_price,
+                        winlose,
+                    )
+                    f.write(line)
+                    bar.update(index)

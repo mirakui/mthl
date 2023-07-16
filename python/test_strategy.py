@@ -17,3 +17,7 @@ tester.load()
 stats = tester.run()
 
 print(stats.stats)
+win_rate = stats.get("win") / (stats.get("win") + stats.get("lose"))
+print("Win rate: %.2f%%" % (win_rate * 100))
+
+tester.dump_results("results.csv")
