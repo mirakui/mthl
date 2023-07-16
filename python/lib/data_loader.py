@@ -1,18 +1,14 @@
-import pandas as pd
-import numpy as np
 import re
+
+import numpy as np
+import pandas as pd
+
+from .constants import *
 
 
 class DataLoader:
-    def __init__(self, data_path, window_size=60, trade_duration=5):
+    def __init__(self, data_path):
         self.data_path = data_path
-        self.window_size = window_size
-        self.trade_duration = trade_duration
-
-    def load_and_preprocess(self):
-        df = self.load()
-        df = self.preprocess(df)
-        return df
 
     def load(self):
         parser = ParserFactory(self.data_path).create()
@@ -22,23 +18,29 @@ class DataLoader:
         # Calculate the trend of last WINDOW_SIZE minutes and add it to the dataset
         trends = []
         for i in range(len(df)):
-            if i < self.window_size:
+            if i < WINDOW_SIZE:
                 trends.append(0)
             else:
                 highs = np.sum(
-                    df["High"].iloc[i - self.window_size : i]
-                    > df["Open"].iloc[i - self.window_size : i]
+                    df["High"].iloc[i - WINDOW_SIZE : i]
+                    > df["Open"].iloc[i - WINDOW_SIZE : i]
                 )
                 lows = np.sum(
-                    df["Low"].iloc[i - self.window_size : i]
-                    < df["Open"].iloc[i - self.window_size : i]
+                    df["Low"].iloc[i - WINDOW_SIZE : i]
+                    < df["Open"].iloc[i - WINDOW_SIZE : i]
                 )
                 if highs > lows:
                     trends.append(1)
                 else:
                     trends.append(0)
         df["Trend"] = trends
-        return df
+
+        scaled_df = df[["Open", "High", "Low", "Close", "Trend"]].copy()
+        scaled_df[["Open", "High", "Low", "Close"]] = (
+            df[["Open", "High", "Low", "Close"]] - PRICE_MIN
+        ) / (PRICE_MAX - PRICE_MIN)
+
+        return (df, scaled_df)
 
 
 class ParserFactory:

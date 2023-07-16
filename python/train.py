@@ -7,9 +7,9 @@ from lib.data_loader import DataLoader
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
+from lib.constants import *
 
 EPOCHS = 10
-WINDOW_SIZE = 60
 
 # Load dataset
 if len(sys.argv) < 2:
@@ -19,17 +19,16 @@ data_path = sys.argv[1]
 print(f"Loading dataset from {data_path}")
 
 data_loader = DataLoader(data_path)
-df = data_loader.load_and_preprocess()
+df = data_loader.load()
 
 print("Preparing dataset...")
+df, scaled_df = data_loader.preprocess(df)
 
 # Prepare dataset for model training
-scaler = MinMaxScaler()
-scaled_df = scaler.fit_transform(df[["Open", "High", "Low", "Close", "Trend"]])
 x, y = [], []
-for i in range(WINDOW_SIZE, len(scaled_df)):
+for i in range(WINDOW_SIZE, len(scaled_df) - TRADE_DURATION):
     x.append(scaled_df[i - WINDOW_SIZE : i])
-    y.append(1 if df["Open"].iloc[i] > df["Close"].iloc[i - 1] else 0)
+    y.append(1 if df["Close"].iloc[i] < df["Open"].iloc[i + TRADE_DURATION] else 0)
 x = np.array(x)
 y = np.array(y)
 
@@ -73,7 +72,7 @@ print(f"Loading model: {model_name}")
 # .keras だと compile=True (デフォルト) でエラーになる。 .h5 だとならない
 loaded_model = tf.keras.saving.load_model(model_name, compile=False)
 print(f"Successfully loaded model: {model_name}")
-y_pred2 = model.predict(x_test)
+y_pred2 = loaded_model.predict(x_test)
 y_pred2 = np.where(y_pred2 > 0.5, 1, 0)
 
 # Evaluate the model

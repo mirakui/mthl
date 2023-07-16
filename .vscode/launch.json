@@ -1,0 +1,37 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Current File",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "train.py",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/python/train.py",
+      "args": ["python/DAT_ASCII_USDJPY_M1_2022-mini.csv"]
+    },
+    {
+      "name": "train2.py",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/python/train2.py",
+      "args": ["python/out/mthl-202307160055.keras","python/USDJPY-M1-202305-mini.csv"]
+    },
+    {
+      "name": "test_strategy.py",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/python/test_strategy.py",
+      "args": ["python/out/mthl-202307160055.keras","python/USDJPY-M1-202305-mini.csv"]
+    },
+  ]
+}

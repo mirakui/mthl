@@ -11,7 +11,7 @@ model_path = sys.argv[1]
 data_path = sys.argv[2]
 
 strategy = BasicStrategy()
-tester = StrategyTester(model_path, data_path, strategy, 60, 5)
+tester = StrategyTester(model_path, data_path, strategy)
 
 tester.load()
 stats = tester.run()

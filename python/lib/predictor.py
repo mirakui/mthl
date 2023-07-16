@@ -1,5 +1,6 @@
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
+from lib.constants import *
 
 
 class PredictorResult:
@@ -9,10 +10,9 @@ class PredictorResult:
 
 
 class Predictor:
-    def __init__(self, model_path, window_size=60):
+    def __init__(self, model_path):
         self.model_path = model_path
         self.buffer = np.empty((0, 6), dtype=object)
-        self.window_size = window_size
         self.model = None
 
     def load_model(self):
@@ -36,7 +36,7 @@ class Predictor:
         )
 
         # バッファが60件以上ならば、最初の行を削除
-        if len(self.buffer) > self.window_size:
+        if len(self.buffer) > WINDOW_SIZE:
             self.buffer = np.delete(self.buffer, 0, 0)
 
         return self.buffer
@@ -52,11 +52,11 @@ class Predictor:
         # We are using sigmoid in the output layer, so the prediction will be a value between 0 and 1.
         # We will interpret this as a binary prediction, with values > 0.5 corresponding to 1 (UP) and otherwise 0 (DOWN)
         # return 'HIGH' if prediction > 0.5 else 'LOW'
-        prediction = self.model.predict(expanded_ohlo, verbose=0)[0][0]
+        prediction = self.model.predict(expanded_ohlo, verbose=0)
 
         last_close_price = float(self.buffer[-1, 4])
 
-        return PredictorResult(prediction, last_close_price)
+        return PredictorResult(prediction[0][0], last_close_price)
 
     def is_ready(self):
-        return len(self.buffer) >= self.window_size
+        return len(self.buffer) >= WINDOW_SIZE
