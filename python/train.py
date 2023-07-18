@@ -22,11 +22,14 @@ data_loader = DataLoader(data_path)
 df = data_loader.load()
 
 print("Preparing dataset...")
-df, scaled_df = data_loader.preprocess(df)
+# df, scaled_df = data_loader.preprocess(df)
+df = data_loader.preprocess(df)
 
 # Prepare dataset for model training
 x, y = [], []
-for i in range(WINDOW_SIZE, len(scaled_df) - TRADE_DURATION):
+scaler = MinMaxScaler()
+scaled_df = scaler.fit_transform(df[["Open", "High", "Low", "Close", "Trend"]])
+for i in range(WINDOW_SIZE, len(df) - TRADE_DURATION):
     x.append(scaled_df[i - WINDOW_SIZE : i])
     y.append(1 if df["Close"].iloc[i] < df["Open"].iloc[i + TRADE_DURATION] else 0)
 x = np.array(x)

@@ -39,15 +39,13 @@ class StrategyTester:
         self.strategy = strategy
         self.stats = Stats()
         self.test_data = None
-        self.scaled_test_data = None
         self.results = {}
 
     def load(self):
         data_loader = DataLoader(self.data_path)
         df = data_loader.load()
-        df, scaled_df = data_loader.preprocess(df)
+        df = data_loader.preprocess(df)
         self.test_data = df
-        self.scaled_test_data = scaled_df
 
     def run(self):
         predictor = Predictor(self.model_path)
@@ -57,7 +55,7 @@ class StrategyTester:
 
         print("Running strategy tester...")
         with ProgressBar(max_value=self.test_data.shape[0]) as bar:
-            for index, row in self.scaled_test_data.iterrows():
+            for index, row in self.test_data.iterrows():
                 date = self.test_data.iloc[index]["Date"]
                 predictor.add(
                     date,

@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.preprocessing import MinMaxScaler
 import tensorflow as tf
 from lib.constants import *
 
@@ -46,7 +47,9 @@ class Predictor:
             return
 
         buffer_ohlo = self.buffer[:, 1:].astype(float)  # 日時を除いた価格データのみを渡す(OHLOのみ)
-        expanded_ohlo = np.expand_dims(buffer_ohlo, axis=0)
+        scaler = MinMaxScaler()
+        scaled_ohlo = scaler.fit_transform(buffer_ohlo)
+        expanded_ohlo = np.expand_dims(scaled_ohlo, axis=0)
 
         # Predict the price movement
         # We are using sigmoid in the output layer, so the prediction will be a value between 0 and 1.

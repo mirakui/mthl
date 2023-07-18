@@ -35,12 +35,7 @@ class DataLoader:
                     trends.append(0)
         df["Trend"] = trends
 
-        scaled_df = df[["Open", "High", "Low", "Close", "Trend"]].copy()
-        scaled_df[["Open", "High", "Low", "Close"]] = (
-            df[["Open", "High", "Low", "Close"]] - PRICE_MIN
-        ) / (PRICE_MAX - PRICE_MIN)
-
-        return (df, scaled_df)
+        return df
 
 
 class ParserFactory:

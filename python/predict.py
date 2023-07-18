@@ -2,6 +2,7 @@ import socket
 import sys
 from keras.models import load_model
 import numpy as np
+from sklearn.preprocessing import MinMaxScaler
 
 BUFFER_SIZE = 60
 # PIPE_PATH = '\\\\.\\pipe\\candlecat'
@@ -59,6 +60,8 @@ class Predictor:
         return len(self.buffer) >= BUFFER_SIZE
 
     def make_prediction(self, input_data):
+        scaler = MinMaxScaler()
+        input_data = scaler.fit_transform(input_data).copy()
         # Assume that input_data is a numpy array of shape (60, 4)
         # and has the same preprocessing as the training data
         input_data = np.expand_dims(input_data, axis=0)

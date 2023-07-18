@@ -31,7 +31,7 @@
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/python/test_strategy.py",
-      "args": ["python/out/mthl-202307160055.keras","python/USDJPY-M1-202305-mini.csv"]
+      "args": ["python/out/mthl-202307172324.keras","python/USDJPY-M1-202305-mini.csv"]
     },
   ]
 }
